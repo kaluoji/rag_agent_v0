@@ -12,6 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 class Settings(BaseSettings):
     # Configuración original
     llm_model: str = "gpt-4.1-2025-04-14"  
+    llm_model_reasoning: str = "gpt-5-pro-2025-10-06"
     tokenizer_model: str = "gpt-4o-mini"
     openai_api_key: str
     supabase_url: str

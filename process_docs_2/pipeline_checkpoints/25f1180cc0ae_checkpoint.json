@@ -1,0 +1,31 @@
+{
+  "doc_id": "25f1180cc0ae",
+  "file_path": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\uploads_ocr\\CELEX_32022L2555_ES_TXT.pdf",
+  "metadata_extracted": true,
+  "text_extracted": true,
+  "chunks_created": true,
+  "chunks_processed": false,
+  "ingested": false,
+  "metadata": {
+    "document_type": "Directiva",
+    "document_title": "DIRECTIVA (UE) 2022/2555 DEL PARLAMENTO EUROPEO Y DEL CONSEJO",
+    "issuing_authority": "EL PARLAMENTO EUROPEO Y EL CONSEJO DE LA UNIÓN EUROPEA",
+    "publication_date": "2022-12-27",
+    "jurisdiction": "Unión Europea",
+    "status": "vigente",
+    "document_number": "Directiva (UE) 2022/2555",
+    "official_source": "Diario Oficial de la Unión Europea",
+    "original_url": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\uploads_ocr\\CELEX_32022L2555_ES_TXT.pdf",
+    "file_name": "CELEX_32022L2555_ES_TXT.pdf",
+    "extraction_date": "2025-10-23T13:44:17.730172+00:00"
+  },
+  "text_file": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\pipeline_checkpoints\\25f1180cc0ae_text.txt",
+  "chunks_file": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\pipeline_checkpoints\\25f1180cc0ae_chunks.json",
+  "chunks_count": 53,
+  "processed_file": null,
+  "document_id_db": 56,
+  "error": null,
+  "failed_at": null,
+  "completed_at": null,
+  "started_at": "2025-10-23T13:44:13.096610+00:00"
+}

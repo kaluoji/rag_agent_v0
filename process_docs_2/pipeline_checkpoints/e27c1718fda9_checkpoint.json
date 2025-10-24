@@ -1,0 +1,31 @@
+{
+  "doc_id": "e27c1718fda9",
+  "file_path": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\uploads_ocr\\CELEX_32015L2366_ES_TXT.pdf",
+  "metadata_extracted": true,
+  "text_extracted": true,
+  "chunks_created": true,
+  "chunks_processed": true,
+  "ingested": true,
+  "metadata": {
+    "document_type": "Directiva",
+    "document_title": "DIRECTIVA (UE) 2015/2366 DEL PARLAMENTO EUROPEO Y DEL CONSEJO",
+    "issuing_authority": "PARLAMENTO EUROPEO Y EL CONSEJO DE LA UNIÓN EUROPEA",
+    "publication_date": "2015-12-23",
+    "jurisdiction": "Unión Europea",
+    "status": "vigente",
+    "document_number": "L 337/35",
+    "official_source": "Diario Oficial de la Unión Europea",
+    "original_url": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\uploads_ocr\\CELEX_32015L2366_ES_TXT.pdf",
+    "file_name": "CELEX_32015L2366_ES_TXT.pdf",
+    "extraction_date": "2025-10-22T09:26:49.607943+00:00"
+  },
+  "text_file": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\pipeline_checkpoints\\e27c1718fda9_text.txt",
+  "chunks_file": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\pipeline_checkpoints\\e27c1718fda9_chunks.json",
+  "chunks_count": 121,
+  "processed_file": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\pipeline_checkpoints\\e27c1718fda9_processed.json",
+  "document_id_db": 53,
+  "error": null,
+  "failed_at": null,
+  "completed_at": "2025-10-22T20:24:40.593021+00:00",
+  "started_at": "2025-10-22T09:26:45.870036+00:00"
+}

@@ -1,0 +1,31 @@
+{
+  "doc_id": "193a6da0a250",
+  "file_path": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\uploads_ocr\\L00001-00088.pdf",
+  "metadata_extracted": true,
+  "text_extracted": true,
+  "chunks_created": true,
+  "chunks_processed": true,
+  "ingested": true,
+  "metadata": {
+    "document_type": "Reglamento",
+    "document_title": "Reglamento (UE) 2016/679 del Parlamento Europeo y del Consejo",
+    "issuing_authority": "Parlamento Europeo y Consejo de la Unión Europea",
+    "publication_date": "2016-04-27",
+    "jurisdiction": "Unión Europea",
+    "status": "vigente",
+    "document_number": "Reglamento (UE) 2016/679",
+    "official_source": "Diario Oficial de la Unión Europea",
+    "original_url": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\uploads_ocr\\L00001-00088.pdf",
+    "file_name": "L00001-00088.pdf",
+    "extraction_date": "2025-10-21T14:27:17.499633+00:00"
+  },
+  "text_file": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\pipeline_checkpoints\\193a6da0a250_text.txt",
+  "chunks_file": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\pipeline_checkpoints\\193a6da0a250_chunks.json",
+  "chunks_count": 100,
+  "processed_file": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\pipeline_checkpoints\\193a6da0a250_processed.json",
+  "document_id_db": 52,
+  "error": null,
+  "failed_at": null,
+  "completed_at": "2025-10-22T20:23:10.070203+00:00",
+  "started_at": "2025-10-21T14:27:15.015139+00:00"
+}

@@ -1,0 +1,26 @@
+{
+  "doc_id": "480f59079851",
+  "file_path": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\uploads_ocr\\BOE-A-2016-1238.pdf",
+  "metadata_extracted": true,
+  "text_extracted": true,
+  "chunks_created": true,
+  "chunks_processed": true,
+  "ingested": true,
+  "metadata": {
+    "document_type": "Desconocido",
+    "document_title": "BOE-A-2016-1238.pdf",
+    "original_url": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\uploads_ocr\\BOE-A-2016-1238.pdf",
+    "file_name": "BOE-A-2016-1238.pdf",
+    "extraction_date": "2025-10-22T13:42:14.670647+00:00",
+    "extraction_error": "RetryError[<Future at 0x2a3532198b0 state=finished raised APIConnectionError>]"
+  },
+  "text_file": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\pipeline_checkpoints\\480f59079851_text.txt",
+  "chunks_file": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\pipeline_checkpoints\\480f59079851_chunks.json",
+  "chunks_count": 147,
+  "processed_file": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\pipeline_checkpoints\\480f59079851_processed.json",
+  "document_id_db": 55,
+  "error": null,
+  "failed_at": null,
+  "completed_at": "2025-10-22T20:23:31.088994+00:00",
+  "started_at": "2025-10-22T13:41:51.210927+00:00"
+}

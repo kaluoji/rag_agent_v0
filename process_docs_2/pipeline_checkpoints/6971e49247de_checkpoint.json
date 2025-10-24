@@ -1,0 +1,31 @@
+{
+  "doc_id": "6971e49247de",
+  "file_path": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\uploads_ocr\\BOE-A-2018-16673-consolidado.pdf",
+  "metadata_extracted": true,
+  "text_extracted": true,
+  "chunks_created": true,
+  "chunks_processed": true,
+  "ingested": true,
+  "metadata": {
+    "document_type": "Ley",
+    "document_title": "Ley Orgánica 3/2018, de 5 de diciembre, de Protección de Datos Personales y garantía de los derechos digitales",
+    "issuing_authority": "Jefatura del Estado",
+    "publication_date": "2018-12-06",
+    "jurisdiction": "España",
+    "status": "Vigente",
+    "document_number": "BOE-A-2018-16673",
+    "official_source": "Boletín Oficial del Estado",
+    "original_url": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\uploads_ocr\\BOE-A-2018-16673-consolidado.pdf",
+    "file_name": "BOE-A-2018-16673-consolidado.pdf",
+    "extraction_date": "2025-10-21T14:27:05.242975+00:00"
+  },
+  "text_file": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\pipeline_checkpoints\\6971e49247de_text.txt",
+  "chunks_file": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\pipeline_checkpoints\\6971e49247de_chunks.json",
+  "chunks_count": 235,
+  "processed_file": "C:\\Users\\koji\\1. Proyectos IA\\rag_agent_v0\\process_docs_2\\pipeline_checkpoints\\6971e49247de_processed.json",
+  "document_id_db": 51,
+  "error": null,
+  "failed_at": null,
+  "completed_at": "2025-10-22T20:24:02.327017+00:00",
+  "started_at": "2025-10-21T14:27:01.997398+00:00"
+}

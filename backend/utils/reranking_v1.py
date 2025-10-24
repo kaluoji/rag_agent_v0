@@ -433,7 +433,7 @@ async def adaptive_hybrid_rerank(
     chunk_tokens: List[List[str]],
     chunk_embeddings: List[Any],
     weights: Dict[str, float] = {"bm25": 0.3, "cosine": 0.3, "llm": 0.4},
-    max_for_llm_eval: int = 15,
+    max_for_llm_eval: int = 30,
     diversify: bool = True
 ) -> List[str]:
     """
@@ -906,7 +906,7 @@ async def rerank_chunks(
     ctx: RunContext[Any], 
     query: str, 
     chunks: List[str], 
-    max_to_rerank: int = 15,
+    max_to_rerank: int = 22,
     max_to_return: int = None,
     diversify: bool = True,
     use_cache: bool = True
@@ -1011,7 +1011,7 @@ async def rerank_chunks(
 
 
 # Mantener la función legada para compatibilidad
-async def rerank_chunks_with_llm(ctx: RunContext[Any], query: str, chunks: List[str], max_to_rerank: int = 15) -> List[str]:
+async def rerank_chunks_with_llm(ctx: RunContext[Any], query: str, chunks: List[str], max_to_rerank: int = 22) -> List[str]:
     """
     Versión simplificada del reranking que usa solo LLM para evaluación.
     Se mantiene como fallback y para compatibilidad.

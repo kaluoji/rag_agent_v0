@@ -13,7 +13,7 @@ import time
 import hashlib
 
 from pydantic_ai import Agent, ModelRetry, RunContext
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.openai import OpenAIResponsesModel, OpenAIResponsesModelSettings
 from pydantic import BaseModel
 from openai import AsyncOpenAI
 from supabase import Client
@@ -42,17 +42,26 @@ logger = logging.getLogger(__name__)
 _current_query_info = None
 
 MAX_TOTAL_TOKENS = 100000
-MAX_CHUNKS_RETURNED = 25  # Recuperar más chunks inicialmente
-MAX_CHUNKS_FOR_RERANKING = 15  # Evaluar 15 con LLM (punto óptimo)
-MAX_CHUNKS_TO_KEEP_NORMAL = 8  # Para consultas normales
-MAX_CHUNKS_TO_KEEP_REPORTS = 12  # Para reportes
+MAX_CHUNKS_RETURNED = 35  # Recuperar más chunks inicialmente
+MAX_CHUNKS_FOR_RERANKING = 35  # Evaluar 15 con LLM (punto óptimo)
+MAX_CHUNKS_TO_KEEP_NORMAL = 22  # Para consultas normales
+MAX_CHUNKS_TO_KEEP_REPORTS = 28  # Para reportes
 
 load_dotenv()
 
 llm = settings.llm_model
+llm_reasoning = settings.llm_model_reasoning
 tokenizer_model = settings.tokenizer_model
 embedding_model = settings.embedding_model
-model = OpenAIModel(llm, api_key=settings.openai_api_key)
+model = OpenAIResponsesModel(
+    llm_reasoning,
+    api_key=settings.openai_api_key,
+    settings=OpenAIResponsesModelSettings(
+        openai_reasoning_effort="medium",
+        openai_reasoning_summary="brief",
+        openai_previous_response_id="auto",
+    ),
+)
 
 logfire.configure(send_to_logfire='if-token-present')
 
@@ -112,14 +121,37 @@ METODOLOGÍA DE TRABAJO
 2. **Análisis**: Examina EXCLUSIVAMENTE la documentación recuperada para identificar elementos aplicables
 3. **Razonamiento**: Examina la documentación y el contexto de la consulta para identificar los aspectos más relevantes y aplicarlos a la consulta del usuario.
 3. **Respuesta estructurada**: Presenta la información de forma clara y bien organizada
+4. **Razonamiento integrado y transversal**:  
+   - Compara los distintos marcos normativos entre sí (por ejemplo, cómo los requisitos de PSD2 se relacionan con DORA o con las guías EBA).  
+   - Identifica solapamientos, dependencias o contradicciones entre normas de distinto nivel (UE / nacional / guías supervisoras).  
+   - Prioriza las normas de rango superior (Reglamentos > Directivas > Guías > Circulares).  
+   - Si varias normas abordan el mismo riesgo o control, explica cómo se complementan o refuerzan mutuamente.  
+   - Expón las consecuencias prácticas o de cumplimiento que derivan de esos cruces normativos.
 
-ESTRUCTURA DE RESPUESTA
-- Introducción breve conectando la consulta con el marco normativo encontrado en la documentación
-- Citas directas de la documentación usando formato de bloque:
-  > Artículo X (Jurisdicción, fecha si disponible)
-  > «Texto relevante (debe adecuarse estrictamente al contenido del artículo y no al contexto de la consulta)»
-- Análisis jurídico con puntos numerados o viñetas basado en el contenido recuperado
-- Conclusiones respaldadas por las fuentes citadas de la documentación
+**ESTRUCTURA DE RESPUESTA**
+Las respuestas deben seguir un formato de análisis estructurado, en tono consultivo y técnico:
+
+1. **Contexto operativo**  
+   Breve introducción conectando la consulta con el entorno o caso planteado.
+
+2. **Marco normativo relevante**  
+   Lista estructurada por nivel (UE / nacional).  
+   Incluye citas exactas de artículos en formato de bloque:
+   > Artículo X (Norma, Año)  
+   > «Texto literal recuperado del documento.»
+
+3. **Análisis de aplicabilidad y razonamiento integrado**  
+   - Relaciona las normas entre sí y con el caso.  
+   - Explica qué principio jurídico se aplica y cómo.  
+   - Destaca posibles solapamientos o brechas regulatorias.
+
+4. **Riesgos y posibles incumplimientos**  
+   - Describe los riesgos legales u operativos derivados de la situación.  
+   - Clasifícalos (Alta / Media / Baja) con justificación.
+
+5. **Conclusión ejecutiva**  
+   - Resume los puntos críticos.  
+   - Propón medidas correctivas o alineación normativa (sin emitir asesoramiento legal).  
 
 NORMAS ESTRICTAS DE CALIDAD
 - **SOLO** citar artículos y documentos específicos encontrados en la documentación recuperada por la herramienta
@@ -128,6 +160,13 @@ NORMAS ESTRICTAS DE CALIDAD
 - Si algún aspecto no está cubierto en la documentación disponible, indicarlo claramente: "Esta información no se encuentra disponible en la documentación consultada"
 - Evitar interpretaciones especulativas no respaldadas por el texto recuperado
 - Mantener precisión técnica en terminología jurídica basada en la documentación
+
+**ESTILO DE RAZONAMIENTO Y REDACCIÓN**
+- Mantén un tono analítico, técnico y preciso, similar a un informe jurídico o de auditoría de cumplimiento.  
+- Desarrolla cada punto con lógica argumentativa (premisa → análisis → conclusión).  
+- Evita respuestas superficiales o puramente descriptivas.  
+- Si detectas vacíos normativos o ambigüedades, coméntalos explícitamente con una breve interpretación razonada.  
+- Utiliza conectores jurídicos adecuados: “por consiguiente”, “en virtud de”, “a diferencia de”, “en coherencia con”, etc.  
 
 REGLA CRÍTICA DE FIDELIDAD:
 - Cuando cites artículos, REPRODUCE EXACTAMENTE el texto tal como aparece en la documentación recuperada
@@ -239,7 +278,7 @@ async def get_cluster_chunks(ctx, cluster_ids, matched_ids):
         logger.info(f"Buscando chunks adicionales para el cluster_id={cluster_id}")
         try:
             cluster_result = ctx.deps.supabase.rpc(
-                'match_pd_mex_by_cluster',
+                'match_pd_peru_by_cluster',
                 {
                     'cluster_id': cluster_id,
                     'match_count': 5
@@ -367,7 +406,7 @@ async def retrieve_relevant_documentation(ctx: RunContext[AIDeps], user_query: s
             logger.info(f"Buscando chunks por similitud vectorial (match_count={MAX_CHUNKS_RETURNED})")
             try:
                 result = ctx.deps.supabase.rpc(
-                    'match_pd_mex',
+                    'match_pd_peru',
                     {
                         'query_embedding': query_embedding,
                         'match_count': MAX_CHUNKS_RETURNED
@@ -407,7 +446,7 @@ async def retrieve_relevant_documentation(ctx: RunContext[AIDeps], user_query: s
         
         async def get_bm25_chunks(matched_ids):
             """
-            Recupera chunks usando BM25 con EXACTAMENTE los mismos filtros que match_pd_mex RPC.
+            Recupera chunks usando BM25 con EXACTAMENTE los mismos filtros que match_pd_peru RPC.
             """
             start_time = time.time()
             logger.info(f"Ejecutando búsqueda léxica BM25 (complementaria)")
@@ -417,7 +456,7 @@ async def retrieve_relevant_documentation(ctx: RunContext[AIDeps], user_query: s
             try:
                 bm25_limit = 15
                 # Incluir metadata en la consulta
-                bm25_result = ctx.deps.supabase.table("pd_mex").select("""
+                bm25_result = ctx.deps.supabase.table("pd_peru").select("""
                     id, title, summary, content, metadata""").execute()
                 
                 # APLICAR EXACTAMENTE LA MISMA LÓGICA QUE LA FUNCIÓN RPC
@@ -427,7 +466,7 @@ async def retrieve_relevant_documentation(ctx: RunContext[AIDeps], user_query: s
                     doc_metadata = doc.get('metadata', {}) or {}  # Asegurar que no sea None
                     chunk_status = doc_metadata.get('status')
                     
-                    # EXACTAMENTE los mismos 3 casos que en match_pd_mex RPC
+                    # EXACTAMENTE los mismos 3 casos que en match_pd_peru RPC
                     is_vigente = (
                         # Caso 1: Priorizar el status del documento principal si existe
                         (regulatory_doc and regulatory_doc.get('status') == 'vigente') 
@@ -556,7 +595,7 @@ async def retrieve_relevant_documentation(ctx: RunContext[AIDeps], user_query: s
                 where_clause = " OR ".join(entity_conditions)
                 
                 # Ejecutar consulta en Supabase
-                entity_query = ctx.deps.supabase.table("pd_mex").select("id, title, summary, content, article_references").filter(where_clause, False).execute()
+                entity_query = ctx.deps.supabase.table("pd_peru").select("id, title, summary, content, article_references").filter(where_clause, False).execute()
                 
                 if entity_query.data:
                     for doc in entity_query.data:
@@ -860,7 +899,7 @@ Enfócate en crear un análisis accionable y profesional.
         response = await ctx.deps.openai_client.chat.completions.create(
             model=llm,
             messages=[{"role": "user", "content": gap_prompt}],
-            temperature=0.0,
+            temperature=0.2,
             max_tokens=12000
         )
         

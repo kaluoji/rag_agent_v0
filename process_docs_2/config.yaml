@@ -1,0 +1,40 @@
+# config.yaml
+
+# Patrones de header/footer para clean_headers_footers()
+header_patterns:
+  - '^\s*DIARIO\s+OFICIAL'
+  - '^\s*BOLETÍN\s+OFICIAL'
+  - '^\s*LEY\s+FEDERAL'
+  - '^\s*Página\s+\d+'
+  - '^DIARIO\s+OFICIAL'
+  - '^BOLETÍN\s+OFICIAL'
+  - '^GACETA\s+OFICIAL'
+  - '^LEY\s+FEDERAL'
+  - '^LEY\s+GENERAL'
+  - '^REGLAMENTO'
+  - '^CÓDIGO'
+  - '^DECRETO'
+  - '^NOM\-\d+'
+  - '^Página\s+\d+'
+  - '^\d+\s+de\s+\d+'  # Patrón de numeración de páginas
+  - '^(?:CAPÍTULO|TÍTULO|LIBRO|PARTE|SECCIÓN)\s+[IVXLCDM0-9]+$'
+
+footer_patterns:
+  - '^\s*\d+\s+de\s+\d+\s*$'  # Numeración tipo "1 de 50"
+  - '^\s*www\.'  # URLs institucionales
+  - '^\s*[Pp]ágina\s*\d+\s*$'
+  - '^\s*-+\s*$'  # Líneas divisorias
+
+# Patrones de secciones
+patterns:
+  - name: Artículo
+    regex: '^[ \t]*(?:ART[IÍ]CULO)\s+(\d+[a-z]?)\b'
+    min_font_size: 11
+  - name: Capítulo
+    regex: '^[ \t]*(?:CAP[IÍ]TULO)\s+([IVXLC]+)\b'
+    min_font_size: 14
+
+# Parámetros de chunking
+chunk:
+  chunk_size: 1500
+  overlap_size: 200
