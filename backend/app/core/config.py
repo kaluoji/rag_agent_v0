@@ -1,7 +1,7 @@
 import os
 import logging
 from pathlib import Path
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Create a logger for this module
 logger = logging.getLogger(__name__)
@@ -33,10 +33,13 @@ class Settings(BaseSettings):
     STATIC_DIR: str = os.path.join(BASE_DIR, "static")
     MAX_REPORT_GENERATION_TIME: int = 300
 
-    class Config:
-        # Usamos la ruta absoluta al .env en la raíz del proyecto
-        env_file = os.path.join(BASE_DIR, ".env")
-        env_file_encoding = "utf-8"
+    # Configuración de Pydantic 2.x
+    model_config = SettingsConfigDict(
+        env_file=os.path.join(BASE_DIR, ".env"),
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore"  # Ignorar campos extra en el .env
+    )
 
     def __init__(self, **data):
         super().__init__(**data)

@@ -14,7 +14,7 @@ import hashlib
 
 from pydantic_ai import Agent, ModelRetry, RunContext
 from pydantic_ai.models.openai import OpenAIResponsesModel, OpenAIResponsesModelSettings
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 from openai import AsyncOpenAI
 from supabase import Client
 from typing import List, Any, Optional, Set
@@ -48,6 +48,8 @@ MAX_CHUNKS_TO_KEEP_NORMAL = 22  # Para consultas normales
 MAX_CHUNKS_TO_KEEP_REPORTS = 28  # Para reportes
 
 load_dotenv()
+
+os.environ.setdefault("OPENAI_API_KEY", settings.openai_api_key)
 
 llm = settings.llm_model
 llm_reasoning = settings.llm_model_reasoning
@@ -102,8 +104,7 @@ class AIDeps(BaseModel):
     supabase: Client
     openai_client: AsyncOpenAI
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 # Agente Protección Datos Eres un experto en regulación de protección de datos y privacidad, operando como un agente AI en Python con acceso a documentación completa y actualizada sobre normas de protección de datos y leyes de privacidad.
 

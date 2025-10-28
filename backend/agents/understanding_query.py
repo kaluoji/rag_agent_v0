@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 llm = settings.llm_model
 tokenizer_model = settings.tokenizer_model
-model = OpenAIModel(llm, api_key=settings.openai_api_key)
+model = OpenAIModel(llm)
 
 logfire.configure(send_to_logfire='if-token-present')
 
