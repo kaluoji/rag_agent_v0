@@ -8,6 +8,8 @@ import logging
 import time
 import json
 import re
+import os
+import httpx
 from typing import List, Dict, Any, Optional, Set
 from pydantic import BaseModel, Field
 
@@ -26,6 +28,9 @@ logger = logging.getLogger(__name__)
 
 llm = settings.llm_model
 tokenizer_model = settings.tokenizer_model
+
+os.environ["OPENAI_API_KEY"] = settings.openai_api_key
+
 model = OpenAIModel(llm)
 
 logfire.configure(send_to_logfire='if-token-present')
@@ -403,8 +408,8 @@ async def process_query(query: str, deps: QueryUnderstandingDeps) -> QueryInfo:
                 )
                 
                 # CORRECCIÓN: Manejo robusto del resultado del agente
-                if hasattr(result, 'data'):
-                    agent_data = result.data
+                if hasattr(result, 'output'):
+                    agent_data = result.output
                     logger.info(f"Resultado del agente obtenido - Tipo: {type(agent_data)}")
                     
                     if isinstance(agent_data, dict):

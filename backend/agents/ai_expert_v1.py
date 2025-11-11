@@ -13,8 +13,8 @@ import time
 import hashlib
 
 from pydantic_ai import Agent, ModelRetry, RunContext
-from pydantic_ai.models.openai import OpenAIResponsesModel, OpenAIResponsesModelSettings
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic_ai.models.openai import OpenAIModel
+from pydantic import BaseModel
 from openai import AsyncOpenAI
 from supabase import Client
 from typing import List, Any, Optional, Set
@@ -49,21 +49,13 @@ MAX_CHUNKS_TO_KEEP_REPORTS = 28  # Para reportes
 
 load_dotenv()
 
-os.environ.setdefault("OPENAI_API_KEY", settings.openai_api_key)
-
 llm = settings.llm_model
 llm_reasoning = settings.llm_model_reasoning
 tokenizer_model = settings.tokenizer_model
 embedding_model = settings.embedding_model
-model = OpenAIResponsesModel(
-    llm_reasoning,
-    api_key=settings.openai_api_key,
-    settings=OpenAIResponsesModelSettings(
-        openai_reasoning_effort="medium",
-        openai_reasoning_summary="brief",
-        openai_previous_response_id="auto",
-    ),
-)
+os.environ["OPENAI_API_KEY"] = settings.openai_api_key
+
+model = OpenAIModel(llm)
 
 logfire.configure(send_to_logfire='if-token-present')
 
@@ -98,13 +90,58 @@ def get_cached_tool_result(tool_name: str, query_hash: str) -> Optional[str]:
         return _tool_execution_state[key]['result']
     return None
 
+async def call_reasoning_model(
+    prompt: str,
+    retrieved_context: str,
+    openai_client: AsyncOpenAI,
+    model: str = "gpt-5-pro-2025-10-06"
+) -> str:
+    """
+    Llama al modelo de razonamiento usando el endpoint /v1/responses.
+    
+    Args:
+        prompt: Prompt del sistema y consulta del usuario
+        retrieved_context: Contexto recuperado después del reranking
+        openai_client: Cliente de OpenAI
+        model: Modelo de razonamiento a usar
+    
+    Returns:
+        Respuesta del modelo de razonamiento
+    """
+    logger.info(f"Llamando al modelo de razonamiento: {model}")
+    
+    try:
+        # Construir el prompt completo
+        full_prompt = f"""{prompt}
 
+DOCUMENTACIÓN RECUPERADA:
+{retrieved_context}
+
+Por favor, analiza la documentación recuperada y proporciona una respuesta detallada y fundamentada."""
+
+        # Llamada al endpoint /v1/responses según la documentación de OpenAI
+        response = await openai_client.responses.create(
+            model=model,
+            input=full_prompt
+        )
+        
+        # Extraer el texto de la respuesta
+        reasoning_response = response.output_text
+        
+        logger.info(f"Respuesta del modelo de razonamiento recibida ({len(reasoning_response)} caracteres)")
+        return reasoning_response
+        
+    except Exception as e:
+        logger.error(f"Error al llamar al modelo de razonamiento: {e}")
+        # Fallback: devolver el contexto sin procesar
+        return f"Error al procesar con modelo de razonamiento. Contexto recuperado:\n\n{retrieved_context}"
 
 class AIDeps(BaseModel):
     supabase: Client
     openai_client: AsyncOpenAI
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    class Config:
+        arbitrary_types_allowed = True
 
 # Agente Protección Datos Eres un experto en regulación de protección de datos y privacidad, operando como un agente AI en Python con acceso a documentación completa y actualizada sobre normas de protección de datos y leyes de privacidad.
 
@@ -121,8 +158,8 @@ METODOLOGÍA DE TRABAJO
     - Incluye la información de optimización como parámetro search_optimization cuando esté disponible
 2. **Análisis**: Examina EXCLUSIVAMENTE la documentación recuperada para identificar elementos aplicables
 3. **Razonamiento**: Examina la documentación y el contexto de la consulta para identificar los aspectos más relevantes y aplicarlos a la consulta del usuario.
-3. **Respuesta estructurada**: Presenta la información de forma clara y bien organizada
-4. **Razonamiento integrado y transversal**:  
+4. **Respuesta estructurada**: Presenta la información de forma clara y bien organizada
+5. **Razonamiento integrado y transversal**:  
    - Compara los distintos marcos normativos entre sí (por ejemplo, cómo los requisitos de PSD2 se relacionan con DORA o con las guías EBA).  
    - Identifica solapamientos, dependencias o contradicciones entre normas de distinto nivel (UE / nacional / guías supervisoras).  
    - Prioriza las normas de rango superior (Reglamentos > Directivas > Guías > Circulares).  
@@ -140,27 +177,35 @@ Las respuestas deben seguir un formato de análisis estructurado, en tono consul
    Incluye citas exactas de artículos en formato de bloque:
    > Artículo X (Norma, Año)  
    > «Texto literal recuperado del documento.»
+   Para cada artículo citado, **explica expresamente el impacto que tendría su incumplimiento en el banco**.  
+     Por ejemplo:  
+     > Artículo 72 (PSD2): «Cuando un usuario de servicios de pago niegue haber autorizado una operación [...] corresponderá al proveedor de servicios de pago demostrar que la operación fue autenticada [...]»  
+     > **Impacto del incumplimiento:** Si el banco no dispone de trazabilidad suficiente, se expone a la imposibilidad de acreditar la autenticación y, por tanto, a asumir la responsabilidad económica del fraude, además del riesgo reputacional y sancionador.
 
 3. **Análisis de aplicabilidad y razonamiento integrado**  
    - Relaciona las normas entre sí y con el caso.  
    - Explica qué principio jurídico se aplica y cómo.  
-   - Destaca posibles solapamientos o brechas regulatorias.
+   - Destaca posibles solapamientos o brechas regulatorias.  
 
 4. **Riesgos y posibles incumplimientos**  
    - Describe los riesgos legales u operativos derivados de la situación.  
-   - Clasifícalos (Alta / Media / Baja) con justificación.
+   - Clasifícalos (Alta / Media / Baja) con justificación.  
+   - Incluye, cuando proceda, **la relación directa entre el artículo incumplido y el riesgo para el banco** (pérdida económica, sanción, incumplimiento supervisor, impacto reputacional, etc.).
 
 5. **Conclusión ejecutiva**  
-   - Resume los puntos críticos.  
+   - Resume los puntos críticos del análisis.  
    - Propón medidas correctivas o alineación normativa (sin emitir asesoramiento legal).  
 
+6. **En resumen**  
+   - Presenta un resumen global y sintético de toda la respuesta enlanzanda con la consulta realizada, destacando las normas clave, los principales riesgos identificados y las consecuencias globales del incumplimiento.
+
 NORMAS ESTRICTAS DE CALIDAD
-- **SOLO** citar artículos y documentos específicos encontrados en la documentación recuperada por la herramienta
-- **NUNCA** hacer referencia a normativas, leyes, artículos o regulaciones que no aparezcan explícitamente en la documentación recuperada
-- **NUNCA** usar conocimiento general sobre leyes o regulaciones que no estén en la documentación proporcionada
-- Si algún aspecto no está cubierto en la documentación disponible, indicarlo claramente: "Esta información no se encuentra disponible en la documentación consultada"
-- Evitar interpretaciones especulativas no respaldadas por el texto recuperado
-- Mantener precisión técnica en terminología jurídica basada en la documentación
+- **SOLO** citar artículos y documentos específicos encontrados en la documentación recuperada por la herramienta.
+- **NUNCA** hacer referencia a normativas, leyes, artículos o regulaciones que no aparezcan explícitamente en la documentación recuperada.
+- **NUNCA** usar conocimiento general sobre leyes o regulaciones que no estén en la documentación proporcionada.
+- Si algún aspecto no está cubierto en la documentación disponible, indicarlo claramente: "Esta información no se encuentra disponible en la documentación consultada".
+- Evitar interpretaciones especulativas no respaldadas por el texto recuperado.
+- Mantener precisión técnica en terminología jurídica basada en la documentación.
 
 **ESTILO DE RAZONAMIENTO Y REDACCIÓN**
 - Mantén un tono analítico, técnico y preciso, similar a un informe jurídico o de auditoría de cumplimiento.  
@@ -169,24 +214,24 @@ NORMAS ESTRICTAS DE CALIDAD
 - Si detectas vacíos normativos o ambigüedades, coméntalos explícitamente con una breve interpretación razonada.  
 - Utiliza conectores jurídicos adecuados: “por consiguiente”, “en virtud de”, “a diferencia de”, “en coherencia con”, etc.  
 
-REGLA CRÍTICA DE FIDELIDAD:
-- Cuando cites artículos, REPRODUCE EXACTAMENTE el texto tal como aparece en la documentación recuperada
-- NO cambies numeración (ej: si dice "Artículo 2. V", NO lo cambies a "Artículo III")
-- NO parafrasees las citas directas
-- Si hay inconsistencias aparentes en la numeración, mantenlas tal como están en el documento original
+**REGLA CRÍTICA DE FIDELIDAD**
+- Cuando cites artículos, REPRODUCE EXACTAMENTE el texto tal como aparece en la documentación recuperada.
+- NO cambies numeración (ej: si dice "Artículo 2. V", NO lo cambies a "Artículo III").
+- NO parafrasees las citas directas.
+- Si hay inconsistencias aparentes en la numeración, mantenlas tal como están en el documento original.
 
-MANEJO DE LIMITACIONES
+**MANEJO DE LIMITACIONES**
 - Si la herramienta de documentación no responde o falla, responder: "No fue posible acceder a la documentación necesaria para responder esta consulta. Por favor, intente nuevamente."
-- Si la documentación recuperada es insuficiente para algún aspecto, especificar: "La documentación consultada no contiene información específica sobre [aspecto específico]"
-- **PROHIBIDO**: inventar referencias, citar normativas no encontradas en la documentación, o usar conocimiento externo no verificado en la base de datos
+- Si la documentación recuperada es insuficiente para algún aspecto, especificar: "La documentación consultada no contiene información específica sobre [aspecto específico]."
+- **PROHIBIDO**: inventar referencias, citar normativas no encontradas en la documentación o usar conocimiento externo no verificado en la base de datos.
 
-VERIFICACIÓN OBLIGATORIA
+**VERIFICACIÓN OBLIGATORIA**
 Antes de mencionar cualquier normativa, ley, artículo o regulación específica, verificar que aparezca explícitamente en la documentación recuperada por la herramienta retrieve_relevant_documentation.
 
 Siempre concluir con: *"Esta respuesta se basa exclusivamente en la documentación consultada y no constituye asesoramiento legal definitivo."*
 
-
 """
+
 
 
 ai_expert = Agent(
@@ -799,7 +844,39 @@ Consulta utilizada para búsqueda: {search_query[:100]}..." if len(search_query)
 
         mark_tool_as_executed(tool_name, query_hash, error_result)
         
-        return error_result
+        # NUEVO: Usar modelo de razonamiento si está configurado
+        if llm_reasoning and (llm_reasoning.startswith("gpt-5") or llm_reasoning.startswith("o1")):
+            logger.info("Usando modelo de razonamiento para procesar la documentación recuperada")
+            
+            try:
+                reasoning_response = await call_reasoning_model(
+                    prompt=f"Consulta del usuario: {user_query}",
+                    retrieved_context=combined_text,
+                    openai_client=ctx.deps.openai_client,
+                    model=llm_reasoning
+                )
+                
+                # Combinar la respuesta del modelo de razonamiento con el contexto
+                final_response = f"""ANÁLISIS CON MODELO DE RAZONAMIENTO:
+
+{reasoning_response}
+
+---
+
+DOCUMENTACIÓN DE REFERENCIA:
+{combined_text}"""
+                
+                mark_tool_as_executed(tool_name, query_hash, final_response)
+                return final_response
+                
+            except Exception as e:
+                logger.error(f"Error usando modelo de razonamiento, devolviendo documentación sin procesar: {e}")
+                mark_tool_as_executed(tool_name, query_hash, combined_text)
+                return combined_text
+        else:
+            # Comportamiento normal sin modelo de razonamiento
+            mark_tool_as_executed(tool_name, query_hash, combined_text)
+            return combined_text
 
 
 # ================== HERRAMIENTA DE GAP ANALYSIS SIMPLIFICADA ==================
@@ -897,7 +974,7 @@ Enfócate en crear un análisis accionable y profesional.
 """
 
         # Ejecutar análisis
-        response = await ctx.deps.openai_client.chat.completions.create(
+        response = await ctx.deps.openai_client.respones.create(
             model=llm,
             messages=[{"role": "user", "content": gap_prompt}],
             temperature=0.2,

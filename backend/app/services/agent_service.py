@@ -2,6 +2,7 @@ from fastapi import Depends
 from typing import Tuple, Dict, Any, Optional
 import logging
 import os
+import httpx
 
 from supabase import create_client
 from openai import AsyncOpenAI

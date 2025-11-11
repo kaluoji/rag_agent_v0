@@ -6,6 +6,7 @@ import uuid
 import json
 import asyncio
 import mammoth
+import httpx
 from datetime import datetime
 from uuid import UUID
 

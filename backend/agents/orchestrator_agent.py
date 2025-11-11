@@ -25,12 +25,13 @@ from agents.report_agent import report_agent, ReportDeps, process_report_query
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+os.environ["OPENAI_API_KEY"] = settings.openai_api_key
+
 # Inicialización del modelo
 llm = settings.llm_model
-model = OpenAIModel(
-    llm, 
-    api_key=settings.openai_api_key
-)
+os.environ["OPENAI_API_KEY"] = settings.openai_api_key
+
+model = OpenAIModel(llm)
 
 class AgentType(str, Enum):
     """Tipos de agentes disponibles en el sistema."""
@@ -131,7 +132,7 @@ orchestrator_agent = Agent(
     model=model,
     system_prompt=system_prompt,
     deps_type=OrchestratorDeps,
-    result_type=OrchestratorPlan
+    output_type=OrchestratorPlan
 )
 
 async def execute_orchestration_plan(plan: OrchestratorPlan, query: str, deps: OrchestratorDeps) -> OrchestrationResult:
@@ -195,7 +196,7 @@ async def execute_orchestration_plan(plan: OrchestratorPlan, query: str, deps: O
             
             if plan.primary_agent == AgentType.COMPLIANCE:
                 sub_response = await debug_run_agent(sub_query, deps=ai_deps)
-                sub_responses.append(sub_response.data)
+                sub_responses.append(sub_response.output)
         
         # Sintetizar los resultados de las sub-consultas
         synthesis_prompt = f"Sintetiza de manera coherente las siguientes respuestas a sub-consultas sobre: {query}\n\n"
@@ -230,7 +231,7 @@ async def execute_orchestration_plan(plan: OrchestratorPlan, query: str, deps: O
         
         return OrchestrationResult(
             agent_used=plan.primary_agent,
-            response=response.data,
+            response=response.output,
             query_info=query_info,
             additional_info={"usage": response.usage()}
         )
@@ -244,7 +245,7 @@ async def execute_orchestration_plan(plan: OrchestratorPlan, query: str, deps: O
         logger.info("Generando reporte en formato Word con el contenido de compliance")
         report_result = await process_report_query(
             query=effective_query,
-            analysis_data=compliance_response.data,
+            analysis_data=compliance_response.output,
             deps=report_deps
         )
         
@@ -282,7 +283,7 @@ El informe incluye un análisis detallado de las normativas y regulaciones relev
                 )
                 
                 # Convertir RegulationResults a string legible
-                response_text = _convert_regulation_results_to_text(response.data)
+                response_text = _convert_regulation_results_to_text(response.output)
                 
                 return OrchestrationResult(
                     agent_used=plan.primary_agent,
@@ -296,7 +297,7 @@ El informe incluye un análisis detallado de las normativas y regulaciones relev
                 response = await debug_run_agent(effective_query, deps=ai_deps)
                 return OrchestrationResult(
                     agent_used=AgentType.COMPLIANCE,
-                    response=response.data,
+                    response=response.output,
                     query_info=query_info,
                     additional_info={"fallback_used": True, "original_error": str(e)}
                 )
@@ -308,7 +309,7 @@ El informe incluye un análisis detallado de las normativas y regulaciones relev
         
         return OrchestrationResult(
             agent_used=AgentType.COMPLIANCE,
-            response=response.data,
+            response=response.output,
             query_info=query_info,
             additional_info={"usage": response.usage()}
         )
@@ -336,7 +337,7 @@ async def process_query(query: str, deps: OrchestratorDeps) -> OrchestrationResu
         deps=deps
     )
     
-    plan = orchestration_result.data
+    plan = orchestration_result.output
     logger.info(f"ORQUESTADOR: Plan generado - Agente principal: {plan.primary_agent}")
     logger.info(f"ORQUESTADOR: ¿Requiere Query Understanding? {plan.requires_query_understanding}")
     logger.info(f"ORQUESTADOR: ¿Requiere manejo de consulta compleja? {plan.requires_complex_handling}")

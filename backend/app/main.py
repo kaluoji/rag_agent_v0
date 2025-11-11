@@ -10,6 +10,17 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.exceptions import RequestValidationError
 
+import httpx
+_original_async_client = httpx.AsyncClient
+
+class PatchedAsyncClient(httpx.AsyncClient):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault('verify', False)
+        kwargs.setdefault('timeout', 60.0)
+        super().__init__(*args, **kwargs)
+
+httpx.AsyncClient = PatchedAsyncClient
+
 # Obtener la ruta del directorio donde está el archivo main.py
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(current_dir)

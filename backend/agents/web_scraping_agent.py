@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Modelo simplificado - similar al de referencia
-model = OpenAIModel(settings.llm_model, api_key=settings.openai_api_key)
+model = OpenAIModel(settings.llm_model)
 
 # URLs controladas para scraping
 REGULATORY_URLS = [

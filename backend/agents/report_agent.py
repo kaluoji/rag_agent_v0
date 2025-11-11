@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Inicialización del modelo
 llm = settings.llm_model
-model = OpenAIModel(llm, api_key=settings.openai_api_key)
+model = OpenAIModel(llm)
 
 class ReportDeps(BaseModel):
     output_folder: str = "output/reports"
@@ -76,7 +76,7 @@ report_agent = Agent(
     model=model,
     system_prompt=report_system_prompt,
     deps_type=ReportDeps,
-    result_type=ReportResult,
+    output_type=ReportResult,
     retries=2
 )
 
