@@ -8,6 +8,7 @@ export interface QueryResponse {
 	query: string;
 	query_id: string;
 	timestamp: string;
+	session_id?: string; 
 	metadata: Record<string, unknown>;
 }
 
@@ -55,6 +56,11 @@ export interface ReportContent {
 	base64Content: string;
 }
 
+// HTML de reporte para preview
+export interface ReportHtmlResponse {
+	html: string;
+}
+
 // Anotaciones de reporte
 export interface ReportAnnotation {
 	id: string;
@@ -76,8 +82,13 @@ export interface AnnotationsResponse {
 // WebSocket message types
 export interface WebSocketMessage {
 	type: 'status' | 'progress' | 'complete' | 'error';
-	data: any;
+	status?: string;
+	progress?: number;
+	data?: any;
 	message?: string;
+	reportPath?: string;
+	reportHtml?: string;
+	filename?: string;
 }
 
 // Error response del backend

@@ -8,6 +8,13 @@ class QueryRequest(BaseModel):
     Esquema para una solicitud de consulta normativa.
     """
     query: str = Field(..., description="Texto de la consulta del usuario")
+    
+    # ========================================================================
+    # NUEVOS CAMPOS PARA MEMORIA (OPCIONALES)
+    # ========================================================================
+    user_id: str = Field(default="default-user", description="ID del usuario para memoria")
+    session_id: Optional[str] = Field(default=None, description="ID de sesión para continuar conversación")
+    use_memory: bool = Field(default=True, description="Activar/desactivar memoria conversacional")
 
 class QueryResponse(BaseModel):
     """
@@ -17,6 +24,7 @@ class QueryResponse(BaseModel):
     query: str = Field(..., description="Consulta original")
     query_id: UUID = Field(default_factory=uuid4, description="ID único de la consulta")
     timestamp: datetime = Field(default_factory=datetime.now, description="Timestamp de la respuesta")
+    session_id: Optional[str] = None
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadatos adicionales")
 
 class ReportRequest(BaseModel):
@@ -86,3 +94,10 @@ class QueryWithDocumentsRequest(BaseModel):
     """Esquema para consulta con documentos adjuntos."""
     query: str = Field(..., description="Texto de la consulta del usuario")
     documents: Optional[List[DocumentData]] = Field(None, description="Lista de documentos adjuntos")
+    
+    # ========================================================================
+    # NUEVOS CAMPOS PARA MEMORIA (OPCIONALES)
+    # ========================================================================
+    user_id: str = Field(default="default-user", description="ID del usuario para memoria")
+    session_id: Optional[str] = Field(default=None, description="ID de sesión para continuar conversación")
+    use_memory: bool = Field(default=True, description="Activar/desactivar memoria conversacional")

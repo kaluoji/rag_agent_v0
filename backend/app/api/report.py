@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Path, Query, Body
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi import WebSocket, WebSocketDisconnect
 from typing import List, Dict, Any
 import logging
 import uuid
@@ -16,14 +17,11 @@ from app.core.websocket import ConnectionManager
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# Obtener el gestor de conexiones WebSocket desde main.py
-connection_manager = None
+# Importar el singleton directamente
+from app.core.websocket import get_connection_manager
 
-@router.on_event("startup")
-def startup_event():
-    global connection_manager
-    from app.main import connection_manager as cm
-    connection_manager = cm
+# Inicializar el connection_manager
+connection_manager = get_connection_manager()
 
 @router.post("/generate", response_model=ReportResponse)
 async def generate_report(
@@ -405,3 +403,99 @@ async def get_report_annotations(
     except Exception as e:
         logger.error(f"Error al obtener anotaciones: {str(e)}")
         return {"annotations": []}
+
+@router.get("/html/{report_id}")
+async def get_report_html_endpoint(
+    report_id: str = Path(..., description="ID del reporte (UUID o timestamp)"),
+    report_service: ReportService = Depends(get_report_service)
+):
+    """
+    Obtiene la previsualización HTML de un reporte.
+    Acepta tanto UUID como IDs de timestamp (20251119_014308).
+    """
+    try:
+        from fastapi.responses import JSONResponse
+        import glob
+        import os
+        import uuid as uuid_lib
+        
+        html_content = None
+        
+        # Intentar como UUID primero
+        try:
+            report_uuid = uuid_lib.UUID(report_id)
+            html_content = await report_service.get_report_html(report_uuid)
+        except ValueError:
+            # No es un UUID, buscar por patrón de archivo
+            logger.info(f"Buscando reporte por patrón de timestamp: {report_id}")
+            
+            # Buscar archivo que termine con el report_id
+            search_pattern = f"output/reports/*{report_id}.docx"
+            matching_files = glob.glob(search_pattern)
+            
+            if not matching_files:
+                # Intentar búsqueda más amplia
+                search_pattern = f"output/reports/*{report_id}*.docx"
+                matching_files = glob.glob(search_pattern)
+            
+            if matching_files:
+                report_path = matching_files[0]
+                logger.info(f"Reporte encontrado: {report_path}")
+                html_content = await report_service._generate_html_preview(report_path)
+            else:
+                logger.warning(f"No se encontró archivo para report_id: {report_id}")
+        
+        if not html_content:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No se encontró previsualización HTML para el reporte {report_id}"
+            )
+        
+        return JSONResponse(content={"html": html_content})
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error al obtener HTML del reporte {report_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener previsualización: {str(e)}"
+        )
+
+@router.websocket("/ws/{report_id}")
+async def websocket_report_endpoint(
+    websocket: WebSocket,
+    report_id: str
+):
+    """
+    WebSocket para actualizaciones en tiempo real de generación de reportes.
+    """
+    # Obtener el connection_manager global
+    global connection_manager
+    
+    if connection_manager is None:
+        logger.error("ConnectionManager no inicializado")
+        await websocket.close(code=1011, reason="Service unavailable")
+        return
+    
+    await connection_manager.connect(websocket)
+    
+    # Agregar al grupo específico del reporte
+    group_name = f"report_{report_id}"
+    connection_manager.add_to_group(websocket, group_name)
+    
+    logger.info(f"WebSocket conectado al grupo: {group_name}")
+    
+    try:
+        while True:
+            # Mantener la conexión abierta
+            data = await websocket.receive_text()
+            # Puedes procesar mensajes del cliente si es necesario
+            logger.debug(f"Mensaje recibido del cliente: {data}")
+            
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket desconectado del grupo: {group_name}")
+        connection_manager.disconnect(websocket)
+    except Exception as e:
+        logger.error(f"Error en WebSocket: {str(e)}")
+        connection_manager.disconnect(websocket)

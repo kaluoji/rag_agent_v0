@@ -6,6 +6,7 @@ import httpx
 import os
 from enum import Enum
 from typing import List, Dict, Optional, Union, Any, Literal
+from pydantic_ai import ModelMessage 
 
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.models.openai import OpenAIModel
@@ -17,6 +18,7 @@ from app.core.config import settings
 from agents.ai_expert_v1 import ai_expert, AIDeps, debug_run_agent
 from agents.understanding_query import process_query as process_query_understanding, QueryUnderstandingDeps, QueryInfo
 from agents.report_agent import report_agent, ReportDeps, process_report_query
+from agents.memory_manager import MemoryManager 
 #from agents.web_scraping_agent import web_scraping_agent, WebScrapingDeps
 #from agents.risk_assessment_agent import risk_assessment_agent, RiskAssessmentDeps
 #from agents.normative_report_agent import normative_report_agent, ReportDeps as NormativeReportDeps, process_report_query
@@ -47,6 +49,9 @@ class OrchestratorDeps(BaseModel):
     """Dependencias necesarias para el agente orquestador."""
     supabase: Client
     openai_client: AsyncOpenAI
+    memory_manager: Optional[MemoryManager] = None  # ← NUEVO
+    session_id: Optional[str] = None                # ← NUEVO
+    user_id: Optional[str] = None                   # ← NUEVO
 
     class Config:
         arbitrary_types_allowed = True
@@ -91,7 +96,6 @@ Agentes disponibles:
 2. COMPLIANCE
    - Experto en normativas y regulaciones de cualquier sector e industria
    - Ideal para consultas sobre regulaciones, obligaciones y procesos normativos
-   - Puede generar informes relacionados con normas de cumplimiento
    - INCLUYE capacidad de análisis GAP entre políticas internas y normativa aplicable
    - Detecta automáticamente cuando se solicita análisis de brechas o evaluación de políticas
 
@@ -100,14 +104,6 @@ Agentes disponibles:
    - Útil cuando el usuario solicita explícitamente un informe o documento 
    - Necesita trabajar con COMPLIANCE para obtener el contenido regulatorio
    - Genera documentos estructurados con secciones estándar (introducción, alcance, análisis, etc.)
-
-#4. WEB_SCRAPING
-#   - Especializado en extraer información actualizada de sitios web regulatorios
-#   - Útil cuando el usuario solicita información sobre las últimas regulaciones, guidelines o actualizaciones
-#   - Usa este agente cuando detectes palabras clave como:
-#     * "novedades", "actualizaciones recientes"
-#     * "guidelines vigentes", "normativa actual"
-#     * Referencias específicas a sitios web regulatorios
 
 Para cada consulta, debes determinar:
 1. Si se requiere un análisis previo con QUERY_UNDERSTANDING
@@ -135,7 +131,7 @@ orchestrator_agent = Agent(
     output_type=OrchestratorPlan
 )
 
-async def execute_orchestration_plan(plan: OrchestratorPlan, query: str, deps: OrchestratorDeps) -> OrchestrationResult:
+async def execute_orchestration_plan(plan: OrchestratorPlan, query: str, deps: OrchestratorDeps, message_history: Optional[List[ModelMessage]] = None) -> OrchestrationResult:
     """
     Ejecuta un plan de orquestación generado por el orquestador.
     
@@ -154,7 +150,9 @@ async def execute_orchestration_plan(plan: OrchestratorPlan, query: str, deps: O
     # Preparar dependencias para los diferentes agentes
     ai_deps = AIDeps(
         supabase=deps.supabase,
-        openai_client=deps.openai_client
+        openai_client=deps.openai_client,
+        memory_manager=deps.memory_manager,  # ← NUEVO
+        session_id=deps.session_id            # ← NUEVO
     )
     
     query_understanding_deps = QueryUnderstandingDeps(
@@ -170,7 +168,7 @@ async def execute_orchestration_plan(plan: OrchestratorPlan, query: str, deps: O
 
     print(f"Directorio actual: {os.getcwd()}")
     print(f"¿Existe agents/templates/?: {os.path.exists('agents/templates')}")
-    print(f"¿Existe el template?: {os.path.exists('agents/templates/Template_Regulatory_Report_AgentIA.docx')}")
+    print(f"¿Existe el template?: {os.path.exists('agents/templates/Template_Regulatory_Report_AgentIA_v0.docx')}")
     if os.path.exists('agents/templates'):
         print(f"Archivos en agents/templates/: {os.listdir('agents/templates')}")
 
@@ -227,8 +225,13 @@ async def execute_orchestration_plan(plan: OrchestratorPlan, query: str, deps: O
     logger.info(f"Procesando con el agente principal: {plan.primary_agent}")
     
     if plan.primary_agent == AgentType.COMPLIANCE:
-        response = await debug_run_agent(effective_query, deps=ai_deps, query_info=query_info)
+        response = await debug_run_agent(effective_query, deps=ai_deps, query_info=query_info, message_history=message_history)
         
+        if deps.memory_manager and deps.session_id:
+            all_messages = response.all_messages()
+            deps.memory_manager.save_messages(deps.session_id, all_messages)
+
+
         return OrchestrationResult(
             agent_used=plan.primary_agent,
             response=response.output,
@@ -266,47 +269,53 @@ El informe incluye un análisis detallado de las normativas y regulaciones relev
             additional_info={"report_path": report_result.file_path}
         )
 
-    elif plan.primary_agent == AgentType.WEB_SCRAPING:
-        logger.info("Procesando con el agente de web scraping")
+#    elif plan.primary_agent == AgentType.WEB_SCRAPING:
+#        logger.info("Procesando con el agente de web scraping")
         
         # Crear dependencias asíncronas
-        async with httpx.AsyncClient() as async_client:
-            web_scraping_deps = WebScrapingDeps(
-                http_client=async_client
-            )
+#        async with httpx.AsyncClient() as async_client:
+#            web_scraping_deps = WebScrapingDeps(
+#                http_client=async_client
+#            )
             
             # Usar la versión asíncrona del agente
-            try:
-                response = await web_scraping_agent.run(
-                    effective_query, 
-                    deps=web_scraping_deps
-                )
+#            try:
+#                response = await web_scraping_agent.run(
+#                    effective_query, 
+#                    deps=web_scraping_deps
+#                )
                 
                 # Convertir RegulationResults a string legible
-                response_text = _convert_regulation_results_to_text(response.output)
+#                response_text = _convert_regulation_results_to_text(response.output)
                 
-                return OrchestrationResult(
-                    agent_used=plan.primary_agent,
-                    response=response_text,  # ← Ahora devolvemos string en lugar del objeto
-                    query_info=query_info,
-                    additional_info={"usage": response.usage()}
-                )
-            except Exception as e:
-                logger.error(f"Error en web scraping agent: {e}")
+#                return OrchestrationResult(
+#                    agent_used=plan.primary_agent,
+#                    response=response_text,  # ← Ahora devolvemos string en lugar del objeto
+#                    query_info=query_info,
+#                    additional_info={"usage": response.usage()}
+#                )
+#            except Exception as e:
+#                logger.error(f"Error en web scraping agent: {e}")
                 # Fallback al agente de compliance
-                response = await debug_run_agent(effective_query, deps=ai_deps)
-                return OrchestrationResult(
-                    agent_used=AgentType.COMPLIANCE,
-                    response=response.output,
-                    query_info=query_info,
-                    additional_info={"fallback_used": True, "original_error": str(e)}
-                )
+#                response = await debug_run_agent(effective_query, deps=ai_deps)
+#                return OrchestrationResult(
+#                    agent_used=AgentType.COMPLIANCE,
+#                    response=response.output,
+#                    query_info=query_info,
+#                    additional_info={"fallback_used": True, "original_error": str(e)}
+#                )
 
     else:
         # Si no se reconoce el tipo de agente, usamos el agente de compliance por defecto
         logger.warning(f"Tipo de agente principal no implementado: {plan.primary_agent}. Usando agente de compliance por defecto.")
-        response = await debug_run_agent(effective_query, deps=ai_deps)
+        response = await debug_run_agent(effective_query, deps=ai_deps, query_info=query_info, message_history=message_history)
         
+        if deps.memory_manager and deps.session_id:
+            all_messages = response.all_messages()
+            deps.memory_manager.save_messages(deps.session_id, all_messages)
+            logger.info(f"💾 Mensajes guardados en sesión {deps.session_id}")
+
+
         return OrchestrationResult(
             agent_used=AgentType.COMPLIANCE,
             response=response.output,
@@ -314,7 +323,7 @@ El informe incluye un análisis detallado de las normativas y regulaciones relev
             additional_info={"usage": response.usage()}
         )
 
-async def process_query(query: str, deps: OrchestratorDeps) -> OrchestrationResult:
+async def process_query(query: str, deps: OrchestratorDeps, message_history: Optional[List[ModelMessage]] = None ) -> OrchestrationResult:
     """
     Procesa una consulta de usuario a través del sistema multi-agente.
     
@@ -325,6 +334,10 @@ async def process_query(query: str, deps: OrchestratorDeps) -> OrchestrationResu
     Returns:
         OrchestrationResult: Resultado de la ejecución del agente seleccionado
     """
+    if deps.memory_manager and deps.session_id and message_history is None:
+        message_history = deps.memory_manager.load_messages(deps.session_id)
+        logger.info(f"📥 Historial cargado: {len(message_history)} mensajes")
+
     # Log de la consulta original recibida
     logger.info("=" * 50)
     logger.info(f"ORQUESTADOR: Consulta recibida: {query[:100]}..." if len(query) > 100 else query)
@@ -348,7 +361,7 @@ async def process_query(query: str, deps: OrchestratorDeps) -> OrchestrationResu
     
     # Ejecutar el plan de orquestación
     logger.info("ORQUESTADOR: Ejecutando plan de orquestación...")
-    result = await execute_orchestration_plan(plan, query, deps)
+    result = await execute_orchestration_plan(plan, query, deps, message_history)
     
     return result
 

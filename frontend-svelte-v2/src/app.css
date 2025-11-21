@@ -1,6 +1,23 @@
 @import "tailwindcss";
 
-@import "tw-animate-css";
+/* Proteger la fuente de la interfaz */
+body,
+button,
+input,
+textarea,
+select,
+h1, h2, h3, h4, h5, h6,
+p, div, span, a,
+nav, aside, main, section,
+header, footer {
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif !important;
+}
+
+/* Excepción SOLO para el preview del documento */
+.document-preview,
+.document-preview * {
+	font-family: inherit !important;
+}
 
 @custom-variant dark (&:is(.dark *));
 
@@ -111,67 +128,177 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+/* Base styles */
+* {
+  border-color: var(--border);
+  outline-color: color-mix(in oklch, var(--ring) 50%, transparent);
 }
 
-/* Estilos para tablas en respuestas Markdown */
-@layer components {
-  /* Tablas con estilo shadcn-svelte */
-  .prose table,
-  [class*="markdown"] table,
-  article table {
-    @apply w-full caption-bottom text-sm border-collapse;
-    border-spacing: 0;
-  }
-
-  .prose thead,
-  [class*="markdown"] thead,
-  article thead {
-    @apply border-b;
-  }
-
-  .prose th,
-  [class*="markdown"] th,
-  article th {
-    @apply h-12 px-4 text-left align-middle font-medium text-muted-foreground;
-    @apply border-b border-border;
-  }
-
-  .prose td,
-  [class*="markdown"] td,
-  article td {
-    @apply p-4 align-middle;
-    @apply border-b border-border;
-  }
-
-  .prose tr,
-  [class*="markdown"] tr,
-  article tr {
-    @apply border-b transition-colors;
-  }
-
-  .prose tbody tr:hover,
-  [class*="markdown"] tbody tr:hover,
-  article tbody tr:hover {
-    @apply bg-muted/50;
-  }
-
-  .prose tbody tr:last-child,
-  [class*="markdown"] tbody tr:last-child,
-  article tbody tr:last-child {
-    @apply border-0;
-  }
-
-  /* Mejoras para código en tablas */
-  .prose table code,
-  [class*="markdown"] table code,
-  article table code {
-    @apply bg-muted px-1.5 py-0.5 rounded text-xs;
-  }
+body {
+  background-color: var(--background);
+  color: var(--foreground);
 }
+
+/* Tablas en respuestas Markdown */
+.prose table,
+[class*="markdown"] table,
+article table {
+  width: 100%;
+  caption-side: bottom;
+  font-size: 0.875rem;
+  border-collapse: collapse;
+  border-spacing: 0;
+  border: 1px solid rgb(226 232 240);
+  margin: 1rem 0;
+}
+
+.prose thead,
+[class*="markdown"] thead,
+article thead {
+  background-color: rgb(248 250 252);
+  border-bottom: 1px solid rgb(226 232 240);
+}
+
+.prose th,
+[class*="markdown"] th,
+article th {
+  height: 3rem;
+  padding: 0.5rem 1rem;
+  text-align: left;
+  vertical-align: middle;
+  font-weight: 600;
+  color: rgb(15 23 42);
+  border: 1px solid rgb(226 232 240);
+}
+
+.prose td,
+[class*="markdown"] td,
+article td {
+  padding: 1rem;
+  vertical-align: middle;
+  color: rgb(51 65 85);
+  border: 1px solid rgb(226 232 240);
+}
+
+.prose tr,
+[class*="markdown"] tr,
+article tr {
+  border-bottom: 1px solid rgb(226 232 240);
+  transition: background-color 0.2s;
+}
+
+.prose tbody tr:hover,
+[class*="markdown"] tbody tr:hover,
+article tbody tr:hover {
+  background-color: rgb(248 250 252);
+}
+
+.prose tbody tr:last-child,
+[class*="markdown"] tbody tr:last-child,
+article tbody tr:last-child {
+  border-bottom: 0;
+}
+
+/* Código en tablas */
+.prose table code,
+[class*="markdown"] table code,
+article table code {
+  background-color: rgb(241 245 249);
+  padding: 0.25rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+}
+
+/* Estilos prose para markdown */
+.prose {
+  max-width: none;
+}
+
+.prose p {
+  margin-bottom: 0.75rem;
+  line-height: 1.75;
+}
+
+.prose ul, 
+.prose ol {
+  margin: 0.75rem 0;
+  padding-left: 1.5rem;
+}
+
+.prose li {
+  margin-bottom: 0.5rem;
+}
+
+.prose code {
+  background-color: rgb(241 245 249);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-family: ui-monospace, monospace;
+}
+
+.prose pre {
+  background-color: rgb(15 23 42);
+  color: rgb(248 250 252);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.prose pre code {
+  background-color: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.prose h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.prose h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.prose h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.prose blockquote {
+  border-left: 4px solid #00548F;
+  padding-left: 1rem;
+  font-style: italic;
+  color: rgb(71 85 105);
+  margin: 1rem 0;
+}
+
+/* --- FIX Artifact: evitar que el panel empuje toda la interfaz --- */
+html {
+  overflow-y: scroll !important; /* scroll SIEMPRE visible */
+}
+
+body {
+  overflow-y: scroll !important; /* impedir que el Artifact haga overflow:hidden */
+  padding-right: 0 !important;   /* evitar desplazamiento hacia la derecha */
+}
+
+/* Override para evitar layout shift cuando shadcn/vaul bloquea el scroll */
+body[data-scroll-locked] {
+  overflow-y: visible !important;
+  padding-right: 0px !important;    /* evita que se agregue padding para scrollbar */
+  margin-right: 0px !important;     /* evita que se agregue margin compensatorio */
+}
+
+html[data-scroll-locked] {
+  padding-right: 0px !important;    /* si html también recibe padding */
+}
+

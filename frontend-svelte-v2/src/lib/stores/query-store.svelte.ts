@@ -1,6 +1,6 @@
 /**
  * Query Store - Maneja el estado de consultas, historial y loading
- * Usa Svelte 5 runes ($state, $effect, $derived) para reactividad moderna
+ * Usa Svelte 5 runes ($state, $derived) para reactividad moderna
  * Auto-persiste en localStorage
  */
 
@@ -37,13 +37,6 @@ class QueryStore {
 		if (typeof window !== 'undefined') {
 			this.loadStoredQueries();
 		}
-
-		// Auto-persistencia: guarda en localStorage cuando cambian las consultas
-		$effect(() => {
-			if (typeof window !== 'undefined' && this.state.recentQueries.length > 0) {
-				localStorage.setItem('recentQueries', JSON.stringify(this.state.recentQueries));
-			}
-		});
 	}
 
 	// Getters reactivos
@@ -88,8 +81,8 @@ class QueryStore {
 				text: this.state.query,
 				timestamp: new Date().toISOString(),
 				response: typeof response === 'string' ? response : response.response || '',
-				type: 'consultation',
-				hasDocuments: false,
+				type: response.type || 'consultation',
+				hasDocuments: response.hasDocuments || false,
 				metadata: typeof response === 'object' ? response.metadata : {}
 			});
 		}
@@ -125,6 +118,9 @@ class QueryStore {
 		if (this.state.recentQueries.length > 100) {
 			this.state.recentQueries = this.state.recentQueries.slice(0, 100);
 		}
+
+		// Persistir inmediatamente
+		this.saveToLocalStorage();
 	}
 
 	loadStoredQueries() {
@@ -139,12 +135,23 @@ class QueryStore {
 		}
 	}
 
+	private saveToLocalStorage() {
+		if (typeof window !== 'undefined') {
+			try {
+				localStorage.setItem('recentQueries', JSON.stringify(this.state.recentQueries));
+			} catch (error) {
+				console.error('Error saving to localStorage:', error);
+			}
+		}
+	}
+
 	getQueryById(id: string): Query | undefined {
 		return this.state.recentQueries.find((q) => q.id === id);
 	}
 
 	removeQueryFromHistory(id: string) {
 		this.state.recentQueries = this.state.recentQueries.filter((q) => q.id !== id);
+		this.saveToLocalStorage();
 	}
 
 	clearAllHistory() {

@@ -126,3 +126,15 @@ class ConnectionManager:
             self.disconnect(connection)
         
         logger.info(f"Mensaje enviado al grupo '{group_name}'. Conexiones activas: {len(self.connection_groups[group_name])}")
+
+# Singleton del ConnectionManager
+_connection_manager = None
+
+def get_connection_manager() -> ConnectionManager:
+    """
+    Devuelve una instancia del ConnectionManager (singleton).
+    """
+    global _connection_manager
+    if _connection_manager is None:
+        _connection_manager = ConnectionManager()
+    return _connection_manager

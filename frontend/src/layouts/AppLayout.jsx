@@ -1,54 +1,56 @@
-// frontend/src/layouts/AppLayout.jsx - MODIFICADO
-import React, { useState, useEffect } from 'react';
-import { Link as RouterLink, useLocation } from 'react-router-dom';
+// AppLayout - PERFECTLY ALIGNED VERSION
+// Matches exact design from provided images
+
+import React, { useState } from 'react';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  AppBar,
   Box,
   Toolbar,
   Typography,
-  Button,
   IconButton,
   Drawer,
   List,
-  ListItem,
+  ListItemButton,
   ListItemIcon,
   ListItemText,
-  Divider,
-  Container,
+  Avatar,
   useMediaQuery,
   useTheme,
   Collapse,
+  Divider,
+  alpha,
+  Badge,
+  Menu,
+  MenuItem,
+  Tooltip,
+  Stack
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-import HomeIcon from '@mui/icons-material/Home';
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import SettingsIcon from '@mui/icons-material/Settings';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import PaymentIcon from '@mui/icons-material/Payment';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import HistoryIcon from '@mui/icons-material/History';
-import NewReleasesIcon from '@mui/icons-material/NewReleases';
-import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import ViewListIcon from '@mui/icons-material/ViewList';
-import logoImg from '../assets/agentia2.png';
+import SettingsIcon from '@mui/icons-material/Settings';
+import LogoutIcon from '@mui/icons-material/Logout';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
+import AddIcon from '@mui/icons-material/Add';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
 import { useQueryStore } from '../contexts/store';
 
-const AppLayout = ({ children }) => {
+const ModernAppLayout = ({ children }) => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [userMenuAnchor, setUserMenuAnchor] = useState(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const location = useLocation();
+  const navigate = useNavigate();
   
-  // Get recent queries from your store
   const { recentQueries } = useQueryStore();
   
   const toggleDrawer = (open) => (event) => {
-    if (
-      event.type === 'keydown' &&
-      (event.key === 'Tab' || event.key === 'Shift')
-    ) {
+    if (event.type === 'keydown' && (event.key === 'Tab' || event.key === 'Shift')) {
       return;
     }
     setDrawerOpen(open);
@@ -58,316 +60,502 @@ const AppLayout = ({ children }) => {
     setHistoryOpen(!historyOpen);
   };
 
-  // Determine if a sidebar item is active based on current route
-  const isActive = (path) => {
-    return location.pathname === path;
+  const isActive = (path) => location.pathname === path;
+
+  const handleNewChat = () => {
+    navigate('/');
   };
 
-  // Sidebar menu items
-  const sidebarItems = [
-    { 
-      text: 'Consultas', 
-      icon: <QuestionAnswerIcon />, 
-      path: '/',
-      active: isActive('/')
-    },
-    { 
-      text: 'Novedades regulatorias', 
-      icon: <NewReleasesIcon />, 
-      path: '/novedades',
-      active: isActive('/novedades')
-    },
-    { 
-      text: 'Historial', 
-      icon: <HistoryIcon />, 
-      onClick: toggleHistory,
-      expandable: true,
-      expanded: historyOpen,
-      // Add a "View All" option and then the recent queries
-      subItems: [
-        {
-          text: 'Ver todo el historial',
-          path: '/historial',
-          icon: <ViewListIcon />,
-          active: isActive('/historial'),
-          isViewAll: true
-        },
-        ...recentQueries?.slice(0, 5).map((query, index) => ({
-          text: query.text?.length > 30 ? `${query.text.substring(0, 30)}...` : query.text || `Consulta ${index + 1}`,
-          path: `/consulta/${query.id}`,
-          timestamp: query.timestamp,
-          active: location.pathname === `/consulta/${query.id}`,
-          type: query.type
-        })) || []
-      ]
-    }
-  ];
-
-  // Function to get type icon for query
-  const getQueryTypeIcon = (type) => {
-    switch (type) {
-      case 'gap_analysis':
-        return '📊';
-      case 'consultation':
-        return '💬';
-      default:
-        return '❓';
-    }
+  const handleUserMenuOpen = (event) => {
+    setUserMenuAnchor(event.currentTarget);
   };
 
-  // The sidebar component
-  const sidebar = (
-    <Box
-      sx={{ 
-        width: 280,
-        height: '100%',
+  const handleUserMenuClose = () => {
+    setUserMenuAnchor(null);
+  };
+
+  // Sidebar content
+  const sidebarContent = (
+    <Box sx={{ 
+      width: 250,
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      bgcolor: '#FAFBFC', // Light gray background like in image
+    }}>
+      {/* Logo / Brand - PERFECTLY ALIGNED */}
+      <Box sx={{ 
+        px: 2.5,
+        py: 2,
         display: 'flex',
-        flexDirection: 'column',
-        borderRight: '1px solid rgba(0, 0, 0, 0.12)'
-      }}
-      role="presentation"
-      onClick={isMobile ? toggleDrawer(false) : undefined}
-      onKeyDown={isMobile ? toggleDrawer(false) : undefined}
-    >
-      {/* AJUSTE: Reducir padding superior para compensar header más pequeño */}
-      <Box sx={{ pt: 6 }}></Box> {/* Reducido de pt: 10 a pt: 6 */}
-      <Box sx={{ flexGrow: 1 }}>
-        <List component="nav" sx={{ p: 1, pt: 2 }}> {/* Reducido de pt: 4 a pt: 2 */}
-          {sidebarItems.map((item, index) => (
-            <React.Fragment key={item.text}>
-              <ListItem 
-                button 
-                component={item.expandable ? 'div' : RouterLink} 
-                to={item.expandable ? undefined : item.path}
-                onClick={item.onClick}
+        alignItems: 'center',
+        gap: 1.5,
+        minHeight: '72px', // Exact height to match chat header
+        maxHeight: '72px',
+        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+      }}>
+        <Avatar 
+          sx={{ 
+            width: 48,
+            height: 48,
+            bgcolor: '#00548F', // Exact color from image
+            boxShadow: 'none'
+          }}
+        >
+          <SmartToyIcon sx={{ fontSize: 26, color: 'white' }} />
+        </Avatar>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              fontSize: '1.125rem',
+              fontWeight: 700,
+              letterSpacing: '-0.01em',
+              lineHeight: 1.3,
+              color: '#1a1a1a',
+              fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+            }}
+          >
+            AgentIA
+          </Typography>
+          <Typography 
+            variant="caption" 
+            sx={{ 
+              fontSize: '0.8125rem',
+              lineHeight: 1.2,
+              color: '#666',
+              display: 'block',
+              fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+            }}
+          >
+            Compliance Assistant
+          </Typography>
+        </Box>
+      </Box>
+
+      {/* New Chat Button - Prominent */}
+      <Box sx={{ p: 2 }}>
+        <ListItemButton
+          onClick={handleNewChat}
+          sx={{
+            borderRadius: 2,
+            py: 1.25,
+            bgcolor: alpha('#00548F', 0.08),
+            border: `1.5px solid ${alpha('#00548F', 0.2)}`,
+            '&:hover': {
+              bgcolor: alpha('#00548F', 0.12),
+              border: `1.5px solid ${alpha('#00548F', 0.3)}`,
+            },
+            transition: 'all 0.2s ease'
+          }}
+        >
+          <ListItemIcon sx={{ 
+            color: '#00548F',
+            minWidth: 36
+          }}>
+            <AddIcon sx={{ fontSize: 20 }} />
+          </ListItemIcon>
+          <ListItemText 
+            primary="Nueva conversación"
+            primaryTypographyProps={{
+              fontWeight: 600,
+              fontSize: '0.875rem',
+              color: '#00548F',
+              fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+            }}
+          />
+        </ListItemButton>
+      </Box>
+
+      <Divider sx={{ mx: 2, opacity: 0.6 }} />
+
+      {/* Main Navigation */}
+      <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2, pt: 1 }}>
+        <List sx={{ px: 0 }}>
+          {/* Conversaciones */}
+          <ListItemButton
+            onClick={() => navigate('/')}
+            sx={{
+              borderRadius: 2,
+              mb: 0.5,
+              py: 1,
+              bgcolor: isActive('/') 
+                ? alpha('#00548F', 0.08)
+                : 'transparent',
+              '&:hover': {
+                bgcolor: alpha('#00548F', 0.06),
+              }
+            }}
+          >
+            <ListItemIcon sx={{ 
+              color: isActive('/') ? '#00548F' : '#666',
+              minWidth: 36
+            }}>
+              <ChatBubbleOutlineIcon sx={{ fontSize: 20 }} />
+            </ListItemIcon>
+            <ListItemText 
+              primary="Conversaciones"
+              primaryTypographyProps={{
+                fontWeight: isActive('/') ? 600 : 400,
+                fontSize: '0.875rem',
+                fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+              }}
+            />
+          </ListItemButton>
+
+          {/* Historial expandible */}
+          <ListItemButton
+            onClick={toggleHistory}
+            sx={{
+              borderRadius: 2,
+              mb: 0.5,
+              py: 1,
+              '&:hover': {
+                bgcolor: alpha('#00548F', 0.06),
+              }
+            }}
+          >
+            <ListItemIcon sx={{ 
+              color: '#666',
+              minWidth: 36
+            }}>
+              <Badge 
+                badgeContent={recentQueries?.length || 0} 
+                color="primary"
+                invisible={!recentQueries?.length}
                 sx={{
-                  borderRadius: '8px',
-                  mb: 0.5,
-                  backgroundColor: item.active ? 'rgba(77, 10, 46, 0.08)' : 'transparent',
-                  color: item.active ? 'primary.main' : 'text.primary',
-                  '&:hover': {
-                    backgroundColor: 'rgba(77, 10, 46, 0.04)',
+                  '& .MuiBadge-badge': {
+                    fontSize: '0.625rem',
+                    height: 16,
+                    minWidth: 16,
+                    padding: '0 4px',
+                    bgcolor: '#00548F'
                   }
                 }}
               >
-                <ListItemIcon sx={{ 
-                  color: item.active ? 'primary.main' : 'inherit',
-                  minWidth: '40px'
-                }}>
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText 
-                  primary={item.text} 
-                  primaryTypographyProps={{ 
-                    fontWeight: item.active ? 500 : 400 
+                <HistoryIcon sx={{ fontSize: 20 }} />
+              </Badge>
+            </ListItemIcon>
+            <ListItemText 
+              primary="Historial"
+              primaryTypographyProps={{
+                fontWeight: 400,
+                fontSize: '0.875rem',
+                fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+              }}
+            />
+            {historyOpen ? 
+              <ExpandLessIcon sx={{ fontSize: 18, color: '#666' }} /> : 
+              <ExpandMoreIcon sx={{ fontSize: 18, color: '#666' }} />
+            }
+          </ListItemButton>
+
+          {/* Historial items */}
+          <Collapse in={historyOpen} timeout="auto" unmountOnExit>
+            <Box sx={{ pl: 1, mt: 0.5 }}>
+              <List component="div" disablePadding>
+                {/* Ver todo */}
+                <ListItemButton
+                  onClick={() => navigate('/historial')}
+                  sx={{
+                    pl: 4,
+                    py: 0.75,
+                    borderRadius: 2,
+                    mb: 0.5,
+                    '&:hover': {
+                      bgcolor: alpha('#00548F', 0.04),
+                    }
                   }}
-                />
-                {item.expandable && (
-                  item.expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />
+                >
+                  <ListItemText 
+                    primary="Ver todo"
+                    primaryTypographyProps={{
+                      fontSize: '0.8125rem',
+                      fontWeight: 500,
+                      color: '#00548F',
+                      fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+                    }}
+                  />
+                </ListItemButton>
+
+                {recentQueries?.length > 0 && (
+                  <Divider sx={{ my: 0.5, opacity: 0.4 }} />
                 )}
-              </ListItem>
-              
-              {item.expandable && (
-                <Collapse in={item.expanded} timeout="auto" unmountOnExit>
-                  <List component="div" disablePadding>
-                    {item.subItems.length > 0 ? (
-                      item.subItems.map((subItem, subIndex) => (
-                        <ListItem
-                          key={subIndex}
-                          button
-                          component={RouterLink}
-                          to={subItem.path}
-                          sx={{
-                            pl: subItem.isViewAll ? 4 : 5,
-                            py: subItem.isViewAll ? 1 : 0.5,
-                            borderRadius: '8px',
-                            backgroundColor: subItem.active ? 'rgba(77, 10, 46, 0.08)' : 'transparent',
-                            color: subItem.active ? 'primary.main' : 'text.secondary',
-                            '&:hover': {
-                              backgroundColor: 'rgba(77, 10, 46, 0.04)',
-                            },
-                            // Special styling for "View All" option
-                            ...(subItem.isViewAll && {
-                              borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
-                              mb: 1,
-                              fontWeight: 500
-                            })
-                          }}
-                        >
-                          {subItem.isViewAll && (
-                            <ListItemIcon sx={{ minWidth: '32px' }}>
-                              {subItem.icon}
-                            </ListItemIcon>
-                          )}
-                          <ListItemText 
-                            primary={
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                {!subItem.isViewAll && subItem.type && (
-                                  <Typography component="span" sx={{ fontSize: '0.8rem' }}>
-                                    {getQueryTypeIcon(subItem.type)}
-                                  </Typography>
-                                )}
-                                <Typography
-                                  component="span"
-                                  variant={subItem.isViewAll ? 'body2' : 'body2'}
-                                  sx={{ 
-                                    fontWeight: subItem.isViewAll ? 500 : 400,
-                                    fontSize: subItem.isViewAll ? '0.875rem' : '0.8rem'
-                                  }}
-                                >
-                                  {subItem.text}
-                                </Typography>
-                              </Box>
-                            }
-                            secondary={!subItem.isViewAll && subItem.timestamp ? new Date(subItem.timestamp).toLocaleDateString() : null}
-                            primaryTypographyProps={{ 
-                              fontWeight: subItem.active ? 500 : 400
-                            }}
-                            secondaryTypographyProps={{
-                              variant: 'caption',
-                              fontSize: '0.7rem'
-                            }}
-                          />
-                        </ListItem>
-                      ))
-                    ) : (
-                      <ListItem sx={{ pl: 4, py: 1 }}>
-                        <ListItemText 
-                          primary="No hay consultas recientes" 
-                          primaryTypographyProps={{ 
-                            variant: 'body2', 
-                            color: 'text.secondary',
-                            fontStyle: 'italic'
-                          }} 
-                        />
-                      </ListItem>
-                    )}
-                  </List>
-                </Collapse>
-              )}
-            </React.Fragment>
-          ))}
+
+                {/* Consultas recientes */}
+                {recentQueries?.slice(0, 5).map((query) => (
+                  <ListItemButton
+                    key={query.id}
+                    onClick={() => navigate(`/consulta/${query.id}`)}
+                    sx={{
+                      pl: 4,
+                      py: 0.75,
+                      borderRadius: 2,
+                      mb: 0.25,
+                      bgcolor: location.pathname === `/consulta/${query.id}`
+                        ? alpha('#00548F', 0.06)
+                        : 'transparent',
+                      '&:hover': {
+                        bgcolor: alpha('#00548F', 0.04),
+                      }
+                    }}
+                  >
+                    <ListItemText 
+                      primary={query.text?.length > 30 
+                        ? `${query.text.substring(0, 30)}...` 
+                        : query.text
+                      }
+                      secondary={new Date(query.timestamp).toLocaleDateString('es-ES', { 
+                        day: 'numeric', 
+                        month: 'short' 
+                      })}
+                      primaryTypographyProps={{
+                        fontSize: '0.75rem',
+                        noWrap: true,
+                        color: '#333',
+                        fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+                      }}
+                      secondaryTypographyProps={{
+                        fontSize: '0.6875rem',
+                        color: '#999',
+                        fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+                      }}
+                    />
+                  </ListItemButton>
+                ))}
+
+                {(!recentQueries || recentQueries.length === 0) && (
+                  <Box sx={{ pl: 4, py: 2 }}>
+                    <Typography 
+                      variant="caption" 
+                      color="text.disabled"
+                      sx={{ 
+                        fontSize: '0.75rem', 
+                        fontStyle: 'italic',
+                        fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+                      }}
+                    >
+                      Sin consultas recientes
+                    </Typography>
+                  </Box>
+                )}
+              </List>
+            </Box>
+          </Collapse>
         </List>
+      </Box>
+
+      <Divider sx={{ opacity: 0.6 }} />
+
+      {/* User Profile - Clean */}
+      <Box sx={{ p: 2 }}>
+        <ListItemButton
+          onClick={handleUserMenuOpen}
+          sx={{
+            borderRadius: 2,
+            p: 1.25,
+            '&:hover': {
+              bgcolor: alpha('#00548F', 0.04)
+            }
+          }}
+        >
+          <Avatar 
+            sx={{ 
+              width: 32,
+              height: 32,
+              mr: 1.5,
+              bgcolor: '#00548F',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+            }}
+          >
+            U
+          </Avatar>
+          <ListItemText 
+            primary="Usuario"
+            secondary="usuario@company.com"
+            primaryTypographyProps={{
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              noWrap: true,
+              fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+            }}
+            secondaryTypographyProps={{
+              fontSize: '0.75rem',
+              noWrap: true,
+              fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+            }}
+          />
+          <SettingsIcon sx={{ fontSize: 18, color: '#666', ml: 'auto' }} />
+        </ListItemButton>
       </Box>
     </Box>
   );
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      {/* MODIFICACIÓN PRINCIPAL: AppBar más estrecho y sin menú superior derecho */}
-      <AppBar 
-        position="fixed" 
-        sx={{ 
-          zIndex: (theme) => theme.zIndex.drawer + 1,
-          // Personalizar altura del AppBar
-          '& .MuiToolbar-root': {
-            minHeight: '48px !important', // Reducido de 64px a 48px
-            height: '48px',
-            paddingTop: '8px',
-            paddingBottom: '8px'
-          }
-        }}
-      >
-        <Toolbar sx={{ minHeight: '48px !important', height: '48px' }}>
-          {isMobile && (
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#F5F7FA' }}>
+      {/* Mobile Drawer */}
+      {isMobile && (
+        <>
+          {/* Mobile Header */}
+          <Box
+            sx={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 64,
+              bgcolor: 'background.paper',
+              borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+              display: 'flex',
+              alignItems: 'center',
+              px: 2,
+              zIndex: 1100,
+              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+            }}
+          >
             <IconButton
               edge="start"
-              color="inherit"
-              aria-label="menu"
               onClick={toggleDrawer(true)}
               sx={{ mr: 2 }}
-              size="small" // Botón más pequeño
             >
               <MenuIcon />
             </IconButton>
-          )}
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <img 
-              src={logoImg}
-              alt="MINSAIT Logo" 
-              style={{ 
-                height: '70px', // Reducido de 65px a 32px
-                marginRight: '2px',
-                marginTop: '5px'
-              }} 
-            />
+            <Avatar 
+              sx={{ 
+                width: 32,
+                height: 32,
+                mr: 1.5,
+                bgcolor: '#00548F'
+              }}
+            >
+              <SmartToyIcon sx={{ fontSize: 18 }} />
+            </Avatar>
+            <Typography 
+              variant="h6" 
+              fontWeight={700} 
+              sx={{ 
+                fontSize: '1rem',
+                fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+              }}
+            >
+              AgentIA
+            </Typography>
           </Box>
-          <Box sx={{ flexGrow: 1 }} />
-          {/* ELIMINADO COMPLETAMENTE: El menú superior derecho */}
-          {/* 
-          {!isMobile && (
-            <Box>
-              <Button color="inherit" component={RouterLink} to="/">
-                Inicio
-              </Button>
-              <Button color="inherit" component={RouterLink} to="/">
-                Consultas
-              </Button>
-              <Button color="inherit" component={RouterLink} to="/">
-                Ayuda
-              </Button>
-            </Box>
-          )}
-          */}
-        </Toolbar>
-      </AppBar>
 
-      {/* Mobile drawer */}
-      <Drawer
-        anchor="left"
-        open={isMobile && drawerOpen}
-        onClose={toggleDrawer(false)}
-        sx={{
-          '& .MuiDrawer-paper': { 
-            width: 280,
-            boxSizing: 'border-box' 
-          },
-        }}
-      >
-        {sidebar}
-      </Drawer>
+          <Drawer
+            anchor="left"
+            open={drawerOpen}
+            onClose={toggleDrawer(false)}
+            sx={{
+              '& .MuiDrawer-paper': { 
+                width: 250,
+                border: 'none',
+                boxShadow: 3
+              },
+            }}
+          >
+            {sidebarContent}
+          </Drawer>
+        </>
+      )}
 
-      {/* Permanent sidebar for desktop */}
+      {/* Desktop Permanent Drawer */}
       {!isMobile && (
         <Drawer
           variant="permanent"
           sx={{
-            width: 280,
+            width: 250,
             flexShrink: 0,
-            [`& .MuiDrawer-paper`]: { 
-              width: 280, 
-              boxSizing: 'border-box',
-              borderRight: '1px solid rgba(0, 0, 0, 0.12)',
-              zIndex: (theme) => theme.zIndex.drawer,
-              top: '48px', // AJUSTADO: de 64px a 48px
-              height: 'calc(100% - 48px)', // AJUSTADO: de 64px a 48px
-              overflowY: 'visible'
+            '& .MuiDrawer-paper': { 
+              width: 250,
+              border: 'none',
+              borderRight: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+              bgcolor: '#FAFBFC',
+              boxShadow: 'none'
             },
           }}
-          open
         >
-          {sidebar}
+          {sidebarContent}
         </Drawer>
       )}
 
+      {/* Main Content */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          bgcolor: 'background.default',
-          p: 3,
-          mt: '48px', // AJUSTADO: de 64px a 48px (altura del AppBar)
-          ml: isMobile ? 0 : '280px', // Ajustar para el ancho del sidebar
-          transition: theme.transitions.create(['margin', 'width'], {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.leavingScreen,
-          }),
+          bgcolor: '#F5F7FA',
+          minHeight: '100vh',
+          mt: isMobile ? '64px' : 0,
+          display: 'flex',
+          flexDirection: 'column'
         }}
       >
         {children}
       </Box>
+
+      {/* User Menu */}
+      <Menu
+        anchorEl={userMenuAnchor}
+        open={Boolean(userMenuAnchor)}
+        onClose={handleUserMenuClose}
+        PaperProps={{
+          sx: {
+            mt: 1,
+            minWidth: 200,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+            borderRadius: 2,
+            border: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+          }
+        }}
+        transformOrigin={{ horizontal: 'left', vertical: 'bottom' }}
+        anchorOrigin={{ horizontal: 'left', vertical: 'top' }}
+      >
+        <MenuItem 
+          onClick={handleUserMenuClose}
+          sx={{ 
+            py: 1.25,
+            fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            '&:hover': { bgcolor: alpha('#00548F', 0.04) }
+          }}
+        >
+          <ListItemIcon>
+            <SettingsIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText 
+            primary="Configuración"
+            primaryTypographyProps={{ 
+              fontSize: '0.875rem',
+              fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+            }}
+          />
+        </MenuItem>
+        <Divider sx={{ my: 0.5 }} />
+        <MenuItem 
+          onClick={handleUserMenuClose}
+          sx={{ 
+            py: 1.25,
+            color: 'error.main',
+            fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.04) }
+          }}
+        >
+          <ListItemIcon>
+            <LogoutIcon fontSize="small" color="error" />
+          </ListItemIcon>
+          <ListItemText 
+            primary="Cerrar sesión"
+            primaryTypographyProps={{ 
+              fontSize: '0.875rem',
+              fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+            }}
+          />
+        </MenuItem>
+      </Menu>
     </Box>
   );
 };
 
-export default AppLayout;
+export default ModernAppLayout;

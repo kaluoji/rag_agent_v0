@@ -1,0 +1,15 @@
+# .git/hooks/pre-commit
+#!/bin/bash
+echo "Running quality hooks before commit..."
+
+# Ejecutar hooks relevantes según archivos modificados
+if git diff --cached --name-only | grep -q "research_outputs/"; then
+    .hooks/hook-manager.sh run_hook "research-quality"
+fi
+
+if git diff --cached --name-only | grep -q "src/"; then
+    .hooks/hook-manager.sh run_hook "tdd-enforcement"
+    .hooks/hook-manager.sh run_hook "compliance"
+fi
+
+echo "✅ All hooks passed"

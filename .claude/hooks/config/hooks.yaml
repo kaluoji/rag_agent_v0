@@ -1,0 +1,17 @@
+# .hooks/config/hooks.yaml
+project:
+  name: "rag-compliance-system"
+  compliance_sectors: ["finance"]
+  
+quality_gates:
+  research_completeness_threshold: 95
+  test_coverage_minimum: 80
+  performance_max_response_time: 2000ms
+  
+external_services:
+  azure_openai_endpoint: "${AZURE_OPENAI_ENDPOINT}"
+  browserbase_api_key: "${BROWSERBASE_API_KEY}"
+  
+validation:
+  require_user_approval: true
+  auto_halt_on_scope_creep: true

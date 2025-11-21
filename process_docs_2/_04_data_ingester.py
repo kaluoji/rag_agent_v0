@@ -172,7 +172,7 @@ class DataIngester:
             }
             
             # Insertar en Supabase
-            result = supabase.table("pd_peru").insert(data).execute()
+            result = supabase.table("pd_mex").insert(data).execute()
             
             logging.debug(f"Insertado chunk {chunk.chunk_number} para {chunk.url}")
             

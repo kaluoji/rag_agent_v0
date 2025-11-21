@@ -1,678 +1,680 @@
-// frontend/src/components/ChatInterface.jsx (modificado)
+// ChatInterface - PERFECT VERSION
+// - Exact color #00548F from images
+// - Subtle right shadow on agent messages  
+// - Tables with proper responsive overflow handling
+// - Inter font family
+// - Header height matches sidebar (72px)
+
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
   Avatar,
   CircularProgress,
-  Divider,
   Paper,
-  Grid,
-  Fade,
-  Zoom,
   IconButton,
-  Collapse,
-  Chip,
-  Button,
-  Tooltip
+  Fade,
+  Tooltip,
+  useTheme,
+  alpha
 } from '@mui/material';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
-import ChatInputArea from './ChatInputArea';
-import DocxPreviewPanel from './DocxPreviewPanel';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import DescriptionIcon from '@mui/icons-material/Description';
-import DocumentUploader from './DocumentUploader';
+import SendIcon from '@mui/icons-material/Send';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
-import AnalyticsIcon from '@mui/icons-material/Analytics';
-import DeleteIcon from '@mui/icons-material/Delete';
+import MicIcon from '@mui/icons-material/Mic';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
+import PersonIcon from '@mui/icons-material/Person';
 
-
-// Importamos la imagen del avatar del agente
-import agentAvatar from '../assets/a.png';
-// Importamos el logo
-import logoImage from '../assets/ablack.png';
-
-// Componente para un mensaje individual en el chat
-const ChatMessage = ({ message, isUser, onViewReport }) => {
-  // Estado para almacenar la información del reporte si existe
-  const [reportInfo, setReportInfo] = useState(null);
+const ModernChatMessage = ({ message, isUser }) => {
+  const theme = useTheme();
   
-  // Al montar el componente, analizar el mensaje para detectar informe
-  useEffect(() => {
-    if (!isUser && message) {
-      // Verificar si el mensaje contiene información de un reporte
-      const hasTitulo = message.includes('Título:');
-      const hasUbicacion = message.includes('Ubicación:');
-      
-      if (hasTitulo && hasUbicacion) {
-        try {
-          // Extraer la información del reporte usando regex
-          const titleMatch = message.match(/Título:\s+([^\n]+)/);
-          const locationMatch = message.match(/Ubicación:\s+([^\n]+)/);
-          
-          if (titleMatch && locationMatch) {
-            setReportInfo({
-              title: titleMatch[1].trim(),
-              path: locationMatch[1].trim()
-            });
-          }
-        } catch (error) {
-          console.error('Error al analizar información del reporte:', error);
-        }
-      }
-    }
-  }, [message, isUser]);
-
   return (
-    <Box 
-      sx={{ 
-        display: 'flex', 
-        mb: 2,
-        flexDirection: isUser ? 'row-reverse' : 'row',
-      }}
-      className="chat-message"
-    >
-      {isUser ? (
-        <Avatar 
-          sx={{ 
-            bgcolor: '#4F062A',
-            width: 38,
-            height: 38,
-            mr: isUser ? 0 : 1,
-            ml: isUser ? 1 : 0
-          }}
-        >
-          U
-        </Avatar>
-      ) : (
-        <Box
-          sx={{
-            width: 38,
-            height: 38,
-            mr: 1,
-            borderRadius: '50%',
-            bgcolor: '#4F062A',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            overflow: 'hidden'
-          }}
-        >
-          <Box
-            component="img"
-            src={agentAvatar}
-            alt="Agent"
-            sx={{
-              width: '80%',
-              height: '80%',
-              objectFit: 'contain'
-            }}
-          />
-        </Box>
-      )}
-      <Paper 
-        elevation={1} 
+    <Fade in timeout={400}>
+      <Box 
         sx={{ 
-          p: 2, 
-          maxWidth: '80%',
-          bgcolor: isUser ? '#4F062A' : 'grey.100',
-          color: isUser ? 'white' : 'inherit',
-          borderRadius: '16px',
+          display: 'flex', 
+          mb: 3,
+          flexDirection: isUser ? 'row-reverse' : 'row',
+          gap: 2,
+          alignItems: 'flex-start'
         }}
       >
-        {isUser ? (
-          <Typography variant="body1" sx={{ whiteSpace: 'pre-line', color: 'inherit', fontSize: '1.05rem' }}>
-            {message.split(/(\¿Listo para hablar compliance\?)/).map((part, index) => {
-              if (part === '¿Listo para hablar compliance?') {
-                return <span key={index} className="highlighted-text">{part}</span>;
-              }
-              return part;
-            })}
-          </Typography>
-        ) : (
-          <Box 
-            className="markdown-content" 
-            sx={{ 
-              '& p': { mt: 0, mb: 2, fontSize: '1.05rem' },
-              '& ul, & ol': { mt: 0, mb: 2, pl: 3 },
-              '& code': { 
-                p: 0.5, 
-                borderRadius: 1, 
-                bgcolor: 'rgba(0, 0, 0, 0.04)', 
-                fontFamily: 'monospace' 
-              },
-              '& pre': { 
-                p: 1.5, 
-                borderRadius: 1, 
-                bgcolor: 'rgba(0, 0, 0, 0.04)', 
-                overflowX: 'auto',
-                '& code': { p: 0, bgcolor: 'transparent' }
-              },
-              '& blockquote': { 
-                borderLeft: '4px solid #e0e0e0', 
-                pl: 2, 
-                ml: 0, 
-                fontStyle: 'italic' 
-              },
-              '& h1, & h2, & h3, & h4, & h5, & h6': { 
-                mt: 2, 
-                mb: 1 
-              },
-              '& mark': {
-                backgroundColor: '#ffeb3b',
-                padding: '2px 4px',
-                fontSize: '1.4em',
-                fontWeight: 500,
-                borderRadius: '3px'
-              },
+        <Avatar 
+          sx={{ 
+            width: 40,
+            height: 40,
+            background: isUser 
+              ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+              : '#00548F',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+          }}
+        >
+          {isUser ? <PersonIcon /> : <SmartToyIcon />}
+        </Avatar>
 
-              // Estilos específicos para tablas
-              '& table': {
-                width: '100%',
-                borderCollapse: 'collapse',
-                margin: '16px 0',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                overflow: 'hidden',
-                borderRadius: '8px'
-              },
-              '& thead': {
-                backgroundColor: '#4F062A',
-                color: 'white'
-              },
-              '& th': {
-                padding: '12px 16px',
-                textAlign: 'left',
-                fontWeight: 600,
-                fontSize: '0.9rem',
-                borderBottom: 'none'
-              },
-              '& td': {
-                padding: '12px 16px',
-                borderBottom: '1px solid #e0e0e0',
-                fontSize: '0.9rem',
-                verticalAlign: 'top'
-              },
-              '& tbody tr': {
-                backgroundColor: '#fff',
-                transition: 'background-color 0.2s ease',
-                '&:hover': {
-                  backgroundColor: '#f9f9f9'
-                },
-                '&:last-child td': {
-                  borderBottom: 'none'
-                }
-              },
-              '& tbody tr:nth-of-type(even)': {
-                backgroundColor: '#f8f9fa'
-              },
-    
-              position: 'relative', // Para el botón de previsualización
+        <Box sx={{ 
+          maxWidth: '80%',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 0.5
+        }}>
+          <Typography 
+            variant="caption" 
+            sx={{ 
+              px: 1,
+              color: '#666',
+              fontWeight: 500,
+              fontSize: '0.8125rem',
+              fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
             }}
           >
-            <ReactMarkdown 
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeRaw]}
-            >
-              {message}
-            </ReactMarkdown>
-            
-            {/* Botón para previsualizar informe si existe */}
-            {reportInfo && (
-              <Box sx={{ 
-                mt: 2, 
-                display: 'flex', 
-                alignItems: 'center',
-                p: 1,
-                borderTop: '1px solid rgba(0,0,0,0.1)'
-              }}>
-                <DescriptionIcon sx={{ mr: 1, color: '#4F062A' }} />
-                <Typography variant="body2" sx={{ flexGrow: 1 }}>
-                  Documento generado: {reportInfo.title.split('/').pop()}
-                </Typography>
-                <Tooltip title="Ver documento">
-                  <IconButton 
-                    size="small"
-                    onClick={() => onViewReport(reportInfo)}
-                    sx={{ 
-                      color: '#4F062A',
-                      backgroundColor: 'rgba(79, 6, 42, 0.1)',
-                      '&:hover': {
-                        backgroundColor: 'rgba(79, 6, 42, 0.2)',
+            {isUser ? 'Tú' : 'AgentIA'}
+          </Typography>
+
+          <Paper 
+            elevation={0}
+            sx={{ 
+              p: 3,
+              backgroundColor: isUser 
+                ? alpha('#00548F', 0.06)
+                : '#FFFFFF',
+              border: `1px solid ${isUser ? 'transparent' : alpha('#E0E0E0', 0.5)}`,
+              borderRadius: isUser ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+              transition: 'all 0.2s ease',
+              // FIXED: Subtle shadow to the right for agent messages only
+              boxShadow: isUser 
+                ? 'none' 
+                : '3px 0 10px rgba(0, 0, 0, 0.03), 1px 0 3px rgba(0, 0, 0, 0.02)',
+              '&:hover': {
+                boxShadow: isUser 
+                  ? '0 2px 8px rgba(0,0,0,0.04)'
+                  : '5px 0 15px rgba(0, 0, 0, 0.04), 2px 0 6px rgba(0, 0, 0, 0.02)',
+                transform: 'translateY(-1px)'
+              }
+            }}
+          >
+            {isUser ? (
+              <Typography 
+                variant="body1" 
+                sx={{ 
+                  whiteSpace: 'pre-line',
+                  lineHeight: 1.6,
+                  color: '#1a1a1a',
+                  fontSize: '0.9375rem',
+                  fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+                }}
+              >
+                {message}
+              </Typography>
+            ) : (
+              <Box 
+                className="markdown-content-enhanced" 
+                sx={{ 
+                  fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                  '& p': { 
+                    mt: 0, 
+                    mb: 1.5, 
+                    lineHeight: 1.7,
+                    fontSize: '0.9375rem',
+                    color: '#333',
+                    fontFamily: 'inherit'
+                  },
+                  '& h1, & h2': {
+                    fontWeight: 700,
+                    color: '#00548F',
+                    lineHeight: 1.3,
+                    fontFamily: 'inherit',
+                    marginTop: '1.5rem',
+                    marginBottom: '1rem'
+                  },
+                  '& h1': {
+                    fontSize: '1.5rem',
+                    borderBottom: '3px solid #00548F',
+                    paddingBottom: '0.5rem'
+                  },
+                  '& h2': {
+                    fontSize: '1.25rem',
+                    borderBottom: '2px solid rgba(0, 84, 143, 0.25)',
+                    paddingBottom: '0.4rem'
+                  },
+                  '& h3, & h4': {
+                    fontWeight: 700,
+                    color: '#00548F',
+                    lineHeight: 1.3,
+                    fontFamily: 'inherit',
+                    marginTop: '1.25rem',
+                    marginBottom: '0.75rem'
+                  },
+                  '& h3': {
+                    fontSize: '1.125rem'
+                  },
+                  '& h4': {
+                    fontSize: '1rem',
+                    fontWeight: 600
+                  },
+                  '& strong': {
+                    fontWeight: 700,
+                    color: '#00548F',
+                    fontFamily: 'inherit'
+                  },
+                  '& ul, & ol': { 
+                    mt: 1.5, 
+                    mb: 2, 
+                    pl: 2.5,
+                    '& li': {
+                      mb: 0.75,
+                      lineHeight: 1.7,
+                      fontFamily: 'inherit',
+                      fontSize: '0.9375rem',
+                      '& strong': {
+                        color: '#00548F',
+                        fontWeight: 700
                       }
-                    }}
+                    }
+                  },
+                  '& li::marker': {
+                    color: '#00548F',
+                    fontWeight: 700
+                  },
+                  '& code': { 
+                    px: 0.75,
+                    py: 0.375,
+                    borderRadius: 0.75,
+                    bgcolor: alpha('#00548F', 0.06),
+                    fontFamily: '"SF Mono", "Monaco", "Consolas", monospace',
+                    fontSize: '0.875em',
+                    border: `1px solid ${alpha('#00548F', 0.12)}`,
+                    fontWeight: 500,
+                    color: '#00548F'
+                  },
+                  '& pre': { 
+                    p: 2,
+                    my: 2,
+                    borderRadius: 2,
+                    bgcolor: alpha('#00548F', 0.03),
+                    overflowX: 'auto',
+                    border: `1px solid ${alpha('#00548F', 0.12)}`,
+                    boxShadow: 'none',
+                    '& code': { 
+                      p: 0, 
+                      bgcolor: 'transparent',
+                      border: 'none'
+                    }
+                  },
+                  '& blockquote': {
+                    my: 2,
+                    pl: 2,
+                    py: 1,
+                    borderLeft: `4px solid #00548F`,
+                    bgcolor: alpha('#00548F', 0.03),
+                    fontStyle: 'italic',
+                    color: '#666',
+                    borderRadius: '0 8px 8px 0'
+                  },
+                  // TABLES - FIXED: Properly responsive with scroll
+                  '& > div': {
+                    overflowX: 'auto',
+                    width: '100%',
+                    WebkitOverflowScrolling: 'touch',
+                    '&::-webkit-scrollbar': {
+                      height: '6px'
+                    },
+                    '&::-webkit-scrollbar-thumb': {
+                      backgroundColor: alpha('#00548F', 0.2),
+                      borderRadius: '3px'
+                    }
+                  },
+                  '& table': {
+                    width: '100%',
+                    minWidth: '600px', // Ensures horizontal scroll when needed
+                    borderCollapse: 'separate',
+                    borderSpacing: 0,
+                    my: 2,
+                    boxShadow: '0 2px 8px rgba(0, 84, 143, 0.08)',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    border: `1px solid ${alpha('#00548F', 0.12)}`,
+                    display: 'table' // Important: keep as table
+                  },
+                  '& thead': {
+                    background: 'linear-gradient(135deg, #00548F 0%, #0073B7 100%)',
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 1
+                  },
+                  '& th': {
+                    p: 1.5,
+                    textAlign: 'left',
+                    fontWeight: 700,
+                    fontSize: '0.8125rem',
+                    color: 'white',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.3px',
+                    borderBottom: 'none',
+                    whiteSpace: 'nowrap',
+                    fontFamily: 'inherit'
+                  },
+                  '& td': {
+                    p: 1.5,
+                    borderBottom: `1px solid ${alpha('#00548F', 0.08)}`,
+                    fontSize: '0.875rem',
+                    verticalAlign: 'top',
+                    lineHeight: 1.6,
+                    color: '#333',
+                    fontFamily: 'inherit'
+                  },
+                  '& tbody tr': {
+                    background: 'white',
+                    transition: 'all 0.15s ease',
+                    '&:nth-of-type(even)': {
+                      background: alpha('#00548F', 0.02)
+                    },
+                    '&:hover': {
+                      background: alpha('#00548F', 0.04),
+                      transform: 'scale(1.001)'
+                    },
+                    '&:last-child td': {
+                      borderBottom: 'none'
+                    }
+                  },
+                  '& hr': {
+                    my: 2.5,
+                    border: 'none',
+                    height: '1px',
+                    background: `linear-gradient(90deg, transparent, ${alpha('#00548F', 0.2)}, transparent)`
+                  },
+                  '& a': {
+                    color: '#00548F',
+                    textDecoration: 'none',
+                    fontWeight: 500,
+                    borderBottom: '1px solid transparent',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      borderBottomColor: '#00548F'
+                    }
+                  }
+                }}
+              >
+                <Box sx={{ overflowX: 'auto', width: '100%' }}>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeRaw]}
                   >
-                    <VisibilityIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                    {message}
+                  </ReactMarkdown>
+                </Box>
               </Box>
             )}
-          </Box>
-        )}
-      </Paper>
+          </Paper>
+        </Box>
+      </Box>
+    </Fade>
+  );
+};
+
+const QuickSuggestions = ({ onSelect }) => {
+  const suggestions = [
+    "¿Cuáles son las mejores prácticas de seguridad de datos?",
+    "Explícame los requisitos del RGPD",
+    "¿Cómo implementar controles de acceso?"
+  ];
+
+  return (
+    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'center' }}>
+      {suggestions.map((suggestion, index) => (
+        <Paper
+          key={index}
+          elevation={0}
+          onClick={() => onSelect(suggestion)}
+          sx={{
+            p: 2.5,
+            cursor: 'pointer',
+            border: '1px solid',
+            borderColor: alpha('#00548F', 0.15),
+            borderRadius: 2.5,
+            transition: 'all 0.2s ease',
+            maxWidth: 280,
+            '&:hover': {
+              borderColor: '#00548F',
+              bgcolor: alpha('#00548F', 0.03),
+              transform: 'translateY(-2px)',
+              boxShadow: `0 4px 12px ${alpha('#00548F', 0.12)}`
+            }
+          }}
+        >
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+              fontSize: '0.875rem',
+              lineHeight: 1.5,
+              color: '#333'
+            }}
+          >
+            {suggestion}
+          </Typography>
+        </Paper>
+      ))}
     </Box>
   );
 };
 
-const ChatInterface = ({ onSubmitQuery, isLoading }) => {
+const ModernChatInterface = ({ onSubmitQuery, isLoading }) => {
+  const [message, setMessage] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(true);
   const messagesEndRef = useRef(null);
-  const messageContainerRef = useRef(null);
-  const [showDocumentUploader, setShowDocumentUploader] = useState(false);
-  const [uploadedDocuments, setUploadedDocuments] = useState([]);
-  const [isGapAnalysisMode, setIsGapAnalysisMode] = useState(false);
-  
-  // Estado para controlar las animaciones
-  const [showWelcome, setShowWelcome] = useState(false);
-  
-  // Estado para el panel de previsualización de documentos
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewReport, setPreviewReport] = useState(null);
+  const inputRef = useRef(null);
+  const theme = useTheme();
 
-  // Scroll al final cuando se agregan nuevos mensajes
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   useEffect(() => {
     scrollToBottom();
-  }, [chatHistory]);
-  
-  // Efecto para mostrar la animación de bienvenida
-  useEffect(() => {
-    // Pequeño retraso para que la animación sea perceptible
-    const timer = setTimeout(() => {
-      setShowWelcome(true);
-    }, 300);
-    
-    return () => clearTimeout(timer);
-  }, []);
+  }, [chatHistory, isLoading]);
 
-  // Agregar respuesta al historial de chat
-  const addResponseToChat = (response) => {
-    setChatHistory(prevHistory => [
-      ...prevHistory,
-      { isUser: false, text: response }
-    ]);
-  };
-  
-  // Manejar visualización de reporte
-  const handleViewReport = (reportInfo) => {
-    console.log("Abriendo reporte:", reportInfo);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     
-    // Mejorar extracción del ID del reporte
-    let reportId = null;
-    
-    // Intentar extraer ID de diferentes formatos de path
-    const patterns = [
-      /Reporte_Normativo_.*?_(\d{8}_\d{6})\.docx/,
-      /Reporte_Normativo_(\d{8}_\d{6})\.docx/,
-      /_(\d{8}_\d{6})\.docx/
-    ];
-    
-    for (const pattern of patterns) {
-      const match = reportInfo.path.match(pattern);
-      if (match && match[1]) {
-        reportId = match[1];
-        break;
-      }
-    }
-    
-    console.log("ID del reporte extraído:", reportId);
-    
-    setPreviewReport({
-      ...reportInfo,
-      extractedId: reportId
-    });
-    setPreviewOpen(true);
-  };
-  
-  // Cerrar panel de previsualización
-  const handleClosePreview = () => {
-    setPreviewOpen(false);
-  };
+    if (!message.trim() || isLoading) return;
 
-  // Función para manejar la selección directa de archivos
-  const handleDirectFileSelection = async (file) => {
-    // Validar el archivo
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    const allowedTypes = ['.pdf', '.docx', '.txt'];
-    
-    if (file.size > maxSize) {
-      alert('El archivo es demasiado grande. Máximo 10MB.');
-      return;
-    }
-    
-    const extension = '.' + file.name.split('.').pop().toLowerCase();
-    if (!allowedTypes.includes(extension)) {
-      alert(`Tipo de archivo no permitido. Tipos válidos: ${allowedTypes.join(', ')}`);
-      return;
-    }
+    const userMessage = message.trim();
+    setMessage('');
+    setShowSuggestions(false);
 
-    // Crear objeto de archivo compatible con el sistema existente
-    const fileObject = {
-      id: Date.now() + Math.random(),
-      file: file,
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      uploadedAt: new Date()
-    };
-    
-    // Actualizar el estado
-    setUploadedDocuments([fileObject]);
-    setIsGapAnalysisMode(true);
-    setShowDocumentUploader(true); // Mostrar el área compacta de confirmación
-  };
+    setChatHistory(prev => [...prev, { 
+      text: userMessage, 
+      isUser: true,
+      timestamp: new Date()
+    }]);
 
-  const handleToggleDocumentUploader = () => {
-    // Si ya hay documentos cargados, alternar la vista
-    if (uploadedDocuments.length > 0) {
-      setShowDocumentUploader(!showDocumentUploader);
-      setIsGapAnalysisMode(!isGapAnalysisMode);
-      
-      // Si estamos cerrando el uploader, limpiar documentos
-      if (showDocumentUploader) {
-        setUploadedDocuments([]);
-      }
-    } else {
-      // Si no hay documentos, abrir directamente el selector de archivos
-      const fileInput = document.createElement('input');
-      fileInput.type = 'file';
-      fileInput.accept = '.pdf,.docx,.txt';
-      fileInput.onchange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-          handleDirectFileSelection(file);
-        }
-      };
-      fileInput.click();
+    if (onSubmitQuery) {
+      await onSubmitQuery(userMessage, (response) => {
+        setChatHistory(prev => [...prev, {
+          text: response,
+          isUser: false,
+          timestamp: new Date()
+        }]);
+      });
     }
   };
 
-  const handleFilesChange = (files) => {
-    setUploadedDocuments(files);
+  const handleSuggestionSelect = (suggestion) => {
+    setMessage(suggestion);
+    inputRef.current?.focus();
   };
-
-  const handleSubmitWithDocuments = async (message) => {
-    if (isGapAnalysisMode && uploadedDocuments.length === 0) {
-      // Mostrar mensaje de error si no hay documentos cargados
-      alert('Por favor, carga al menos un documento para realizar el análisis GAP');
-      return;
-    }
-    
-    // Procesar los archivos a base64 si hay documentos cargados
-    let documentsData = null;
-    
-    if (uploadedDocuments.length > 0) {
-      documentsData = await Promise.all(
-        uploadedDocuments.map(async (fileObj) => {
-          return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              resolve({
-                name: fileObj.name,
-                type: fileObj.type,
-                content: e.target.result.split(',')[1], // Remover el prefijo data:...base64,
-                size: fileObj.size
-              });
-            };
-            reader.readAsDataURL(fileObj.file);
-          });
-        })
-      );
-    }
-    
-    // Construir el mensaje enriquecido para GAP analysis
-    let enrichedMessage = message;
-    
-    if (isGapAnalysisMode && documentsData) {
-      enrichedMessage = `Realiza un análisis GAP del siguiente documento: ${documentsData[0].name}
-
-Política a evaluar:
-[DOCUMENTO_CARGADO: ${documentsData[0].name}]
-
-Consulta específica: ${message}`;
-    }
-    
-    // Agregar consulta del usuario al historial (mensaje original, no enriquecido)
-    setChatHistory(prevHistory => [
-      ...prevHistory,
-      { isUser: true, text: message, hasDocuments: uploadedDocuments.length > 0 }
-    ]);
-    
-    // Enviar consulta al componente padre con los documentos
-    onSubmitQuery(enrichedMessage, addResponseToChat, documentsData);
-    
-    // Limpiar el modo GAP analysis después del envío
-    if (isGapAnalysisMode) {
-      setShowDocumentUploader(false);
-      setIsGapAnalysisMode(false);
-      setUploadedDocuments([]);
-    }
-  };
-
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Área de mensajes con clase especial para scrollbar sutil y fondo con degradado */}
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column',
+      height: '100vh',
+      maxHeight: '100vh',
+      bgcolor: '#FFFFFF'
+    }}>
+      {/* Header - PERFECTLY ALIGNED with sidebar */}
+      <Box sx={{ 
+        px: 3,
+        py: 2,
+        minHeight: '72px',
+        maxHeight: '72px',
+        display: 'flex',
+        alignItems: 'center',
+        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+        background: '#FFFFFF'
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Avatar 
+              sx={{ 
+                width: 48,
+                height: 48,
+                bgcolor: '#00548F',
+                boxShadow: '0 2px 6px rgba(0, 84, 143, 0.15)'
+              }}
+            >
+              <SmartToyIcon />
+            </Avatar>
+            <Box>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  fontWeight: 700,
+                  fontSize: '1.125rem',
+                  lineHeight: 1.3,
+                  fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+                }}
+              >
+                AgentIA
+              </Typography>
+              <Typography 
+                variant="caption" 
+                sx={{ 
+                  fontSize: '0.8125rem',
+                  color: '#666',
+                  display: 'block',
+                  lineHeight: 1.2,
+                  fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+                }}
+              >
+                Asistente de Compliance
+              </Typography>
+            </Box>
+          </Box>
+          <IconButton>
+            <MoreVertIcon />
+          </IconButton>
+        </Box>
+      </Box>
+
+      {/* Messages */}
       <Box 
-        ref={messageContainerRef}
-        className="chat-messages-container"
         sx={{ 
-          flexGrow: 1, 
-          overflowY: 'auto', 
+          flexGrow: 1,
+          overflowY: 'auto',
           p: 3,
-          // Degradado sutil de fondo
-          background: 'linear-gradient(to bottom, rgba(249, 250, 252, 0.8) 0%, rgba(249, 250, 252, 1) 100%)',
-          display: 'flex',
-          flexDirection: 'column',
-          '&::-webkit-scrollbar': {
-            width: '6px',
-          },
-          '&::-webkit-scrollbar-track': {
-            background: 'transparent',
-            borderRadius: '10px',
-          },
+          bgcolor: '#F5F7FA',
+          '&::-webkit-scrollbar': { width: '6px' },
+          '&::-webkit-scrollbar-track': { background: 'transparent' },
           '&::-webkit-scrollbar-thumb': {
-            background: 'rgba(79, 6, 42, 0.2)',
+            background: alpha('#00548F', 0.15),
             borderRadius: '10px',
-            transition: 'background 0.3s'
           },
-          '&::-webkit-scrollbar-thumb:hover': {
-            background: 'rgba(79, 6, 42, 0.4)',
-          },
-          // Para Firefox
-          scrollbarWidth: 'thin',
-          scrollbarColor: 'rgba(79, 6, 42, 0.2) transparent',
         }}
       >
-        {chatHistory.length === 0 ? (
-          <Box 
-            sx={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              height: '100%',
-              p: 4,
-              // Mover el conjunto ligeramente hacia arriba
-              mt: { xs: 0, sm: -5, md: -8 }
-            }}
-          >
-            {/* Contenedor tabular para logo y texto con animación */}
-            <Fade in={showWelcome} timeout={1000}>
+        {chatHistory.length === 0 && showSuggestions ? (
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '100%',
+            textAlign: 'center'
+          }}>
+            <Fade in timeout={800}>
               <Box>
-                <Grid 
-                  container 
-                  spacing={2} 
-                  alignItems="center" 
-                  justifyContent="center"
-                  sx={{ mb: 3 }}
+                <Typography 
+                  variant="h3" 
+                  fontWeight={700}
+                  sx={{ 
+                    mb: 2,
+                    background: 'linear-gradient(135deg, #00548F 0%, #0073B7 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                    fontSize: '2rem'
+                  }}
                 >
-                  <Grid item xs={12} sm="auto" sx={{ textAlign: 'center' }}>
-                    <Zoom in={showWelcome} timeout={800}>
-                      <Box 
-                        component="img" 
-                        src={logoImage} 
-                        alt="AgentIA Logo"
-                        sx={{ 
-                          height: 60,
-                          maxWidth: '100%',
-                          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'  // Sombra sutil
-                        }}
-                      />
-                    </Zoom>
-                  </Grid>
-                  <Grid item xs={12} sm="auto">
-                    <Typography 
-                      variant="h4" 
-                      color="primary.dark" 
-                      align="center" 
-                      fontWeight="500" 
-                      sx={{ 
-                        ml: { sm: 2 },
-                        fontSize: {
-                          xs: '1.8rem',
-                          sm: '2.2rem',
-                          md: '2.2rem'
-                        },
-                        textShadow: '0 1px 2px rgba(0,0,0,0.05)'  // Sombra sutil en el texto
-                      }}
-                    >
-                      ¿Listo para hablar de compliance?
-                    </Typography>
-                  </Grid>
-                </Grid>
-                
-                {/* Línea decorativa con animación */}
-                <Fade in={showWelcome} timeout={1500} style={{ transitionDelay: '500ms' }}>
-                  <Box 
-                    sx={{ 
-                      width: '80px', 
-                      height: '3px', 
-                      background: 'linear-gradient(to right, transparent, rgba(79, 6, 42, 0.7), transparent)', 
-                      borderRadius: '2px',
-                      mx: 'auto',
-                      mb: 4
-                    }} 
-                  />
-                </Fade>
-                
-                {/* Pequeño texto descriptivo */}
-                <Fade in={showWelcome} timeout={1500} style={{ transitionDelay: '700ms' }}>
-                  <Typography 
-                    variant="body1" 
-                    color="text.secondary" 
-                    align="center" 
-                    sx={{ 
-                      mt: 2, 
-                      opacity: 0.8,
-                      maxWidth: '600px',
-                      mx: 'auto'
-                    }}
-                  >
-                    Consulte cualquier duda normativa o regulatoria
-                  </Typography>
-                </Fade>
+                  ¿Listo para hablar de compliance?
+                </Typography>
+                <Typography 
+                  variant="body1" 
+                  sx={{ 
+                    mb: 6, 
+                    maxWidth: 600,
+                    color: '#666',
+                    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+                  }}
+                >
+                  Consulta cualquier duda normativa o regulatoria.
+                </Typography>
+                <QuickSuggestions onSelect={handleSuggestionSelect} />
               </Box>
             </Fade>
           </Box>
         ) : (
-          <Box sx={{ width: '100%' }}>
-            {chatHistory.map((msg, index) => (
-              <ChatMessage 
-                key={index} 
-                message={msg.text} 
-                isUser={msg.isUser}
-                onViewReport={handleViewReport}
-              />
-            ))}
-          </Box>
+          chatHistory.map((msg, index) => (
+            <ModernChatMessage 
+              key={index}
+              message={msg.text}
+              isUser={msg.isUser}
+            />
+          ))
         )}
-        
+
         {isLoading && (
-          <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2 }}>
-            <Box
-              sx={{
-                display: 'flex',
-                p: 2,
-                borderRadius: '16px',
-                bgcolor: 'grey.100',
-                alignItems: 'center',
-                maxWidth: '80%'
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+            <Avatar 
+              sx={{ 
+                width: 40,
+                height: 40,
+                bgcolor: '#00548F'
               }}
             >
-              <Box className="typing-indicator" sx={{ mx: 2 }}>
-                <span></span>
-                <span></span>
-                <span></span>
-              </Box>
-            </Box>
+              <SmartToyIcon />
+            </Avatar>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                border: `1px solid ${alpha('#E0E0E0', 0.5)}`,
+                borderRadius: '18px 18px 18px 4px',
+                bgcolor: '#FFFFFF'
+              }}
+            >
+              <CircularProgress size={20} sx={{ color: '#00548F' }} />
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  color: '#666',
+                  fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+                }}
+              >
+                Pensando...
+              </Typography>
+            </Paper>
           </Box>
         )}
-        
+
         <div ref={messagesEndRef} />
       </Box>
-      
-      {/* Área de confirmación de documento cargado - compacta */}
-      <Collapse in={showDocumentUploader && uploadedDocuments.length > 0}>
-        <Box sx={{ 
-          p: 2, 
-          borderTop: '1px solid rgba(0,0,0,0.1)',
-          backgroundColor: 'rgba(79, 6, 42, 0.02)'
-        }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <AnalyticsIcon sx={{ mr: 1, fontSize: '1.2rem', color: '#4F062A' }} />
-              <Box>
-                <Typography variant="subtitle2" sx={{ 
-                  color: '#4F062A',
-                  fontWeight: 600,
-                  lineHeight: 1.2
-                }}>
-                  Análisis GAP activado
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {uploadedDocuments[0]?.name} cargado correctamente
-                </Typography>
-              </Box>
-            </Box>
-            <IconButton
-              size="small"
-              onClick={() => {
-                setUploadedDocuments([]);
-                setIsGapAnalysisMode(false);
-                setShowDocumentUploader(false);
-              }}
-              sx={{ color: 'text.secondary' }}
-            >
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Box>
-        </Box>
-      </Collapse>
 
-      {/* Área de entrada - fijada en la parte inferior */}
-      <Box sx={{ flexShrink: 0 }}>
-        <ChatInputArea 
-          onSendMessage={handleSubmitWithDocuments}
-          isLoading={isLoading}
-          onToggleDocuments={handleToggleDocumentUploader}
-          hasDocuments={uploadedDocuments.length > 0}
-        />
+      {/* Input */}
+      <Box sx={{ 
+        p: 3,
+        borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+        background: '#FFFFFF'
+      }}>
+        <form onSubmit={handleSubmit}>
+          <Paper
+            elevation={0}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              p: 1.5,
+              border: `1.5px solid ${alpha('#E0E0E0', 0.5)}`,
+              borderRadius: 3,
+              transition: 'all 0.2s ease',
+              '&:focus-within': {
+                borderColor: '#00548F',
+                boxShadow: `0 0 0 3px ${alpha('#00548F', 0.08)}`
+              }
+            }}
+          >
+            <Tooltip title="Adjuntar archivo">
+              <IconButton size="small" sx={{ color: '#666' }}>
+                <AttachFileIcon />
+              </IconButton>
+            </Tooltip>
+
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Escribe tu consulta aquí..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              disabled={isLoading}
+              style={{
+                flex: 1,
+                border: 'none',
+                outline: 'none',
+                fontSize: '0.9375rem',
+                padding: '8px',
+                background: 'transparent',
+                fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                color: '#1a1a1a'
+              }}
+            />
+
+            <Tooltip title="Mensaje de voz">
+              <IconButton size="small" sx={{ color: '#666' }}>
+                <MicIcon />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Enviar">
+              <span>
+                <IconButton 
+                  type="submit"
+                  disabled={!message.trim() || isLoading}
+                  sx={{
+                    background: !message.trim() || isLoading 
+                      ? alpha('#E0E0E0', 0.3)
+                      : 'linear-gradient(135deg, #00548F 0%, #0073B7 100%)',
+                    color: 'white',
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #0073B7 0%, #00548F 100%)',
+                      transform: 'scale(1.05)'
+                    },
+                    '&.Mui-disabled': {
+                      color: alpha('#666', 0.5),
+                      background: alpha('#E0E0E0', 0.3)
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <SendIcon />
+                </IconButton>
+              </span>
+            </Tooltip>
+          </Paper>
+
+          <Typography 
+            variant="caption" 
+            sx={{ 
+              display: 'block',
+              textAlign: 'center',
+              mt: 1.5,
+              color: '#999',
+              fontSize: '0.75rem',
+              fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+            }}
+          >
+            AgentIA puede cometer errores. Verifica la información importante.
+          </Typography>
+        </form>
       </Box>
-      
-      {/* Panel de previsualización de documentos */}
-      <DocxPreviewPanel
-        open={previewOpen}
-        onClose={handleClosePreview}
-        reportPath={previewReport?.path}
-        reportTitle={previewReport?.title}
-      />
     </Box>
   );
 };
 
-export default ChatInterface;
+export default ModernChatInterface;

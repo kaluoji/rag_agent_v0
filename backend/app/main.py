@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.exceptions import RequestValidationError
+from app.core.websocket import get_connection_manager
 
 import httpx
 _original_async_client = httpx.AsyncClient
@@ -70,6 +71,9 @@ app = FastAPI(
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json",
 )
+
+# Inicializar ConnectionManager global
+connection_manager = get_connection_manager()
 
 # Configurar CORS
 app.add_middleware(

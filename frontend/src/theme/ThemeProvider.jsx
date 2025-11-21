@@ -1,20 +1,22 @@
-// frontend/src/theme/ThemeProvider.jsx - MODIFICADO
+// ThemeProvider - PERFECT VERSION
+// Exact color #00548F from images
+// Inter font family with proper import
+
 import React from 'react';
 import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 
-// MINSAIT burgundy color palette
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#4D0A2E', // Burgundy MINSAIT color
-      light: '#7A1149',
-      dark: '#300621',
+      main: '#00548F',      // Exact blue from images
+      light: '#0073B7',     
+      dark: '#003D6B',      
     },
     secondary: {
-      main: '#4D0A2E', // Using the same burgundy as secondary color
-      light: '#7A1149',
-      dark: '#300621',
+      main: '#0073B7',      
+      light: '#339FD1',
+      dark: '#00548F',
     },
     error: {
       main: '#d32f2f',
@@ -32,60 +34,80 @@ const theme = createTheme({
       light: '#c8e6c9',
     },
     background: {
-      default: '#f5f7fa',
-      paper: '#ffffff',
+      default: '#F5F7FA',
+      paper: '#FFFFFF',
     },
     text: {
-      primary: '#263238',
-      secondary: '#546e7a',
+      primary: '#1a1a1a',
+      secondary: '#666',
     },
   },
   typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica", "Arial", sans-serif',
     h1: {
       fontSize: '2.5rem',
-      fontWeight: 600,
+      fontWeight: 700,
+      letterSpacing: '-0.02em'
     },
     h2: {
       fontSize: '2rem',
-      fontWeight: 600,
+      fontWeight: 700,
+      letterSpacing: '-0.01em'
     },
     h3: {
       fontSize: '1.75rem',
-      fontWeight: 500,
+      fontWeight: 600,
     },
     h4: {
       fontSize: '1.5rem',
-      fontWeight: 500,
+      fontWeight: 600,
     },
     h5: {
       fontSize: '1.25rem',
-      fontWeight: 500,
+      fontWeight: 600,
     },
     h6: {
-      fontSize: '1.1rem',
-      fontWeight: 500,
+      fontSize: '1.125rem',
+      fontWeight: 600,
     },
     body1: {
-      fontSize: '1rem',
+      fontSize: '0.9375rem',
       lineHeight: 1.6,
     },
     body2: {
       fontSize: '0.875rem',
       lineHeight: 1.5,
     },
+    button: {
+      textTransform: 'none',
+      fontWeight: 500,
+    }
   },
   shape: {
-    borderRadius: 25,
+    borderRadius: 8,
   },
   components: {
+    MuiCssBaseline: {
+      styleOverrides: `
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        * {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+        }
+        
+        body {
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+        }
+      `,
+    },
     MuiPaper: {
       styleOverrides: {
         root: {
-          boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.05)',
+          boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.04)',
         },
         outlined: {
-          border: '1px solid rgba(0, 0, 0, 0.08)',
+          border: '1px solid rgba(0, 0, 0, 0.06)',
         },
       },
     },
@@ -94,71 +116,13 @@ const theme = createTheme({
         root: {
           textTransform: 'none',
           fontWeight: 500,
+          borderRadius: 8,
         },
-      },
-    },
-    MuiTypography: {
-      styleOverrides: {
-        gutterBottom: {
-          marginBottom: '0.75em',
-        },
-      },
-    },
-    // MODIFICACIÓN PRINCIPAL: AppBar más estrecho
-    MuiAppBar: {
-      styleOverrides: {
-        root: {
-          backgroundColor: '#4D0A2E',
-          boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.1)',
-          // Forzar altura reducida
-          minHeight: '48px',
-          height: '48px',
-        },
-      },
-    },
-    // NUEVO: Estilo para Toolbar más estrecho
-    MuiToolbar: {
-      styleOverrides: {
-        root: {
-          minHeight: '48px !important',
-          height: '48px',
-          paddingTop: '8px',
-          paddingBottom: '8px',
-          '@media (min-width: 600px)': {
-            minHeight: '48px !important',
-            height: '48px',
+        contained: {
+          boxShadow: '0 2px 8px rgba(0, 84, 143, 0.12)',
+          '&:hover': {
+            boxShadow: '0 4px 12px rgba(0, 84, 143, 0.2)',
           },
-        },
-      },
-    },
-    MuiAccordion: {
-      styleOverrides: {
-        root: {
-          boxShadow: 'none',
-          '&:before': {
-            display: 'none',
-          },
-          '&.Mui-expanded': {
-            margin: 0,
-          },
-        },
-      },
-    },
-    MuiAccordionSummary: {
-      styleOverrides: {
-        content: {
-          margin: '12px 0',
-          '&.Mui-expanded': {
-            margin: '12px 0',
-          },
-        },
-      },
-    },
-    MuiTab: {
-      styleOverrides: {
-        root: {
-          fontWeight: 500,
-          textTransform: 'none',
         },
       },
     },
@@ -166,6 +130,13 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           fontWeight: 500,
+        },
+        colorPrimary: {
+          backgroundColor: 'rgba(0, 84, 143, 0.08)',
+          color: '#00548F',
+          '&:hover': {
+            backgroundColor: 'rgba(0, 84, 143, 0.15)',
+          },
         },
       },
     },

@@ -110,7 +110,7 @@ class ReportService:
                 query=query,
                 analysis_data=response,
                 deps=self.report_deps,
-                template_name="Template_Regulatory_Report_AgentIA.docx",
+                template_name="Template_Regulatory_Report_AgentIA_v0.docx",
                 regulation_name=None
             )
             

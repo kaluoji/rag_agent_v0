@@ -56,8 +56,9 @@
 		});
 	}
 
-	// Truncar texto
-	function truncate(text: string, maxLength: number): string {
+	// Truncar texto de forma segura
+	function truncate(text: string | null | undefined, maxLength: number): string {
+		if (!text || typeof text !== 'string') return '';
 		if (text.length <= maxLength) return text;
 		return text.slice(0, maxLength) + '...';
 	}
@@ -118,18 +119,21 @@
 		<!-- Filtros -->
 		<div class="flex gap-2">
 			<Button
+				type="button"
 				variant={selectedFilter === 'all' ? 'default' : 'outline'}
 				onclick={() => (selectedFilter = 'all')}
 			>
 				Todas
 			</Button>
 			<Button
+				type="button"
 				variant={selectedFilter === 'gap_analysis' ? 'default' : 'outline'}
 				onclick={() => (selectedFilter = 'gap_analysis')}
 			>
 				Análisis GAP
 			</Button>
 			<Button
+				type="button"
 				variant={selectedFilter === 'consultation' ? 'default' : 'outline'}
 				onclick={() => (selectedFilter = 'consultation')}
 			>
@@ -139,7 +143,11 @@
 
 		<!-- Limpiar todo -->
 		{#if queryStore.totalQueries > 0}
-			<Button variant="destructive" onclick={() => (showClearDialog = true)}>
+			<Button 
+				type="button"
+				variant="destructive" 
+				onclick={() => (showClearDialog = true)}
+			>
 				<Trash2 class="h-4 w-4 mr-2" />
 				Limpiar Todo
 			</Button>
@@ -160,10 +168,13 @@
 	{:else}
 		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 			{#each filteredQueries as query (query.id)}
-				<Card class="p-4 hover:shadow-lg transition-shadow cursor-pointer group">
+				<Card class="p-5 hover:shadow-xl transition-all cursor-pointer group border-2 hover:border-[#00548F]">
 					<!-- Header de la card -->
 					<div class="flex items-start justify-between mb-3">
-						<Badge variant={getTypeBadge(query.type).variant}>
+						<Badge 
+							variant={getTypeBadge(query.type).variant}
+							class="bg-slate-900 text-white"
+						>
 							{getTypeBadge(query.type).label}
 						</Badge>
 						<div class="flex items-center gap-1 text-xs text-slate-500">
@@ -173,7 +184,13 @@
 					</div>
 
 					<!-- Contenido -->
-					<div class="mb-4" onclick={() => viewQuery(query.id)}>
+					<div 
+						class="mb-4" 
+						role="button"
+						tabindex="0"
+						onclick={() => viewQuery(query.id)}
+						onkeydown={(e) => e.key === 'Enter' && viewQuery(query.id)}
+					>
 						<h3 class="font-semibold text-slate-900 mb-2 line-clamp-2">
 							{query.text}
 						</h3>
@@ -186,11 +203,17 @@
 
 					<!-- Acciones -->
 					<div class="flex gap-2">
-						<Button size="sm" variant="outline" onclick={() => viewQuery(query.id)}>
+						<Button 
+							type="button"
+							size="sm" 
+							variant="outline" 
+							onclick={() => viewQuery(query.id)}
+						>
 							<Eye class="h-4 w-4 mr-1" />
 							Ver
 						</Button>
 						<Button
+							type="button"
 							size="sm"
 							variant="ghost"
 							onclick={() => shareQuery(query.id)}
@@ -198,6 +221,7 @@
 							<Share2 class="h-4 w-4" />
 						</Button>
 						<Button
+							type="button"
 							size="sm"
 							variant="ghost"
 							onclick={() => deleteQuery(query.id)}
@@ -223,10 +247,18 @@
 			</DialogDescription>
 		</DialogHeader>
 		<DialogFooter>
-			<Button variant="outline" onclick={() => (showClearDialog = false)}>
+			<Button 
+				type="button"
+				variant="outline" 
+				onclick={() => (showClearDialog = false)}
+			>
 				Cancelar
 			</Button>
-			<Button variant="destructive" onclick={clearAllHistory}>
+			<Button 
+				type="button"
+				variant="destructive" 
+				onclick={clearAllHistory}
+			>
 				Sí, eliminar todo
 			</Button>
 		</DialogFooter>

@@ -1,63 +1,62 @@
 <script lang="ts">
-	import {
-		ChatContainerRoot,
-		ChatContainerContent,
-		ChatContainerScrollAnchor
-	} from '$lib/components/prompt-kit/chat-container';
-
+	import { tick } from 'svelte';
 	import { Message, MessageAvatar, MessageContent } from '$lib/components/prompt-kit/message';
-
 	import { Loader } from '$lib/components/prompt-kit/loader';
-
 	import {
 		PromptInput,
 		PromptInputTextarea,
-		PromptInputActions,
-		PromptInputAction
+		PromptInputActions
 	} from '$lib/components/prompt-kit/prompt-input';
-
-	import { PromptSuggestion } from '$lib/components/prompt-kit/prompt-suggestion';
-
 	import {
 		FileUpload,
 		FileUploadTrigger,
 		FileUploadContent
 	} from '$lib/components/prompt-kit/file-upload';
-
 	import { Response as AiResponse } from '$lib/components/ai-elements/response';
 	import { Alert } from '$lib/components/ui/alert';
-	import type { DocumentData } from '$lib/types/backend';
-	import { submitQuery, submitQueryWithDocuments, filesToDocumentData } from '$lib/api';
-	import { queryStore } from '$lib/stores';
+	import { Button } from '$lib/components/ui/button';
+	import { askQuery, askQueryWithDocuments, fileToDocumentData, startNewConversation, getCurrentSessionId } from '$lib/api/client';
+	import { queryStore, reportStore } from '$lib/stores';
 	import { onMount } from 'svelte';
-	import { AlertCircle } from 'lucide-svelte';
+	import { AlertCircle, Paperclip, FileText, MessageSquarePlus } from 'lucide-svelte';
 
 	type Role = 'user' | 'assistant';
-
 	type ChatMessage = {
 		id: string;
 		role: Role;
 		content: string;
+		reportId?: string;
+		reportFilename?: string;
 	};
 
 	let messages: ChatMessage[] = $state([]);
 	let inputValue = $state('');
 	let attachedFiles: File[] = $state([]);
+	let chatContainerRef: HTMLElement | null = null;
 
-	// Cargar historial al montar
 	onMount(() => {
 		queryStore.loadStoredQueries();
 	});
-  
+
 	const suggestions: string[] = [
-		'Explica brevemente los requisitos clave de la Circular X para seguros de autos.',
-		'Realiza un análisis GAP entre mi política interna y la normativa de blanqueo de capitales.',
-		'Resume las principales obligaciones de reporting para la DGSFP en materia de solvencia.',
-		'¿Qué cambios normativos relevantes ha habido en Solvencia II en los últimos 12 meses?'
+		'Gobierno corporativo CUSF',
+		'Reporte financiero CUSF',
+		'Gestión de riesgos',
+		'Controles PLD CUSF'
 	];
 
-	function addMessage(role: Role, content: string) {
-		messages = [...messages, { id: crypto.randomUUID(), role, content }];
+	function scrollToBottom() {
+		const el = chatContainerRef;
+		if (!el) return;
+
+		setTimeout(() => {
+			el.scrollTop = el.scrollHeight;
+		}, 100);
+	}
+
+	function addMessage(role: Role, content: string, reportId?: string, reportFilename?: string) {
+		messages = [...messages, { id: crypto.randomUUID(), role, content, reportId, reportFilename }];
+		scrollToBottom();
 	}
 
 	function handleSuggestionClick(text: string) {
@@ -68,48 +67,117 @@
 		attachedFiles = files;
 	}
 
+	// ✅ Nueva función para iniciar conversación nueva
+	function handleNewConversation() {
+		// Limpiar mensajes
+		messages = [];
+		
+		// Limpiar sesión
+		startNewConversation();
+		
+		// Limpiar input
+		inputValue = '';
+		attachedFiles = [];
+		
+		// Limpiar stores
+		queryStore.reset();
+		reportStore.closePreview();
+		
+		console.log('🔴 Nueva conversación iniciada - Session ID limpiado');
+		console.log('🔴 Session ID actual:', getCurrentSessionId());
+	}
+
+	async function detectAndShowReport(responseText: string): Promise<{ reportId: string; filename: string } | null> {
+		const reportIdMatch = responseText.match(/(\d{8}_\d{6})\.docx/);
+		
+		if (reportIdMatch) {
+			const reportId = reportIdMatch[1];
+			const filename = `Reporte_${reportId}.docx`;
+			
+			console.log('🎯 Reporte detectado con ID:', reportId);
+			
+			reportStore.setReportId(reportId);
+			reportStore.setFilename(filename);
+			reportStore.setStatus('ready');
+			reportStore.openPreview();
+			
+			console.log('📂 Artifact abierto, cargando preview...');
+			
+			try {
+				const { getReportHtml } = await import('$lib/api/report');
+				const html = await getReportHtml(reportId);
+				reportStore.setReportHtml(html);
+				console.log('✅ HTML cargado correctamente');
+			} catch (error) {
+				console.error('❌ Error al cargar HTML del reporte:', error);
+			}
+			
+			return { reportId, filename };
+		} else {
+			console.log('⚠️ No se detectó patrón de reporte en la respuesta');
+			return null;
+		}
+	}
+
+	async function reopenReport(reportId: string, filename: string) {
+		console.log('🔄 Reabriendo reporte:', reportId);
+		
+		reportStore.setReportId(reportId);
+		reportStore.setFilename(filename);
+		reportStore.setStatus('ready');
+		
+		if (!reportStore.reportHtml) {
+			try {
+				const { getReportHtml } = await import('$lib/api/report');
+				const html = await getReportHtml(reportId);
+				reportStore.setReportHtml(html);
+			} catch (error) {
+				console.error('❌ Error al cargar HTML del reporte:', error);
+			}
+		}
+		
+		reportStore.openPreview();
+	}
+
 	async function handleSubmit() {
 		const question = inputValue.trim();
-
 		if (!question && attachedFiles.length === 0) return;
 
-		// Limpiar error previo
 		queryStore.reset();
-
-		// Agregar mensaje del usuario al chat
 		addMessage('user', question || '[Consulta con documentos]');
-
-		// Iniciar loading
 		queryStore.startLoading();
 		queryStore.setQuery(question);
 
+		const currentFiles = [...attachedFiles];
+		inputValue = '';
+		attachedFiles = [];
+
 		try {
+			console.log('🔵 Session ID actual antes de enviar:', getCurrentSessionId());
 			let responseData;
 
-			// Enviar con o sin documentos
-			if (attachedFiles.length > 0) {
-				const documents = await filesToDocumentData(attachedFiles);
-				responseData = await submitQueryWithDocuments(question, documents);
+			if (currentFiles.length > 0) {
+				const documents = await Promise.all(currentFiles.map(fileToDocumentData));
+				responseData = await askQueryWithDocuments(question, documents);
 			} else {
-				responseData = await submitQuery(question);
+				responseData = await askQuery(question);
 			}
 
-			// Extraer texto de respuesta
+			console.log('🟢 Session ID recibido del backend:', responseData.session_id);
+			console.log('🟢 Session ID guardado en memoria:', getCurrentSessionId());
+
 			const responseText = responseData.response || JSON.stringify(responseData);
+			
+			const reportInfo = await detectAndShowReport(responseText);
+			
+			addMessage('assistant', responseText, reportInfo?.reportId, reportInfo?.filename);
 
-			// Agregar respuesta al chat
-			addMessage('assistant', responseText);
-
-			// Guardar en el store (automáticamente guarda en historial)
 			queryStore.setResponse({
 				...responseData,
-				type: attachedFiles.length > 0 ? 'gap_analysis' : 'consultation',
-				hasDocuments: attachedFiles.length > 0
+				type: currentFiles.length > 0 ? 'gap_analysis' : 'consultation',
+				hasDocuments: currentFiles.length > 0
 			});
-
-			// Limpiar inputs
-			inputValue = '';
-			attachedFiles = [];
+			
 		} catch (e) {
 			const errorMessage = e instanceof Error ? e.message : 'Error desconocido';
 			queryStore.setError(errorMessage);
@@ -118,63 +186,132 @@
 			queryStore.stopLoading();
 		}
 	}
-  </script>
-  
-  <section class="flex flex-col h-[100dvh] max-h-[100dvh] bg-background">
-    <div class="flex-1 flex flex-col max-w-5xl mx-auto w-full px-4 py-6 gap-4">
-      <!-- Header -->
-      <header class="space-y-1">
-        <h1 class="text-2xl font-semibold tracking-tight">
-          Asistente Normativo
-        </h1>
-        <p class="text-sm text-muted-foreground">
-          Lanza consultas normativas o sube documentación para análisis GAP.
-        </p>
-      </header>
-  
-      <!-- Chat -->
-      <ChatContainerRoot
-        class="flex-1 border rounded-xl bg-card overflow-hidden flex flex-col"
-      >
-        <ChatContainerContent class="flex-1 px-4 py-3 space-y-4 overflow-y-auto">
-          {#if messages.length === 0}
-            <div class="text-sm text-muted-foreground text-center mt-8">
-              Empieza escribiendo una consulta o selecciona una sugerencia.
-            </div>
-          {/if}
-  
-          {#each messages as message (message.id)}
-            <div class={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <Message class="max-w-[80%]">
-                {#if message.role === 'assistant'}
-                  <MessageAvatar fallback="AI" />
-                {/if}
-  
-                <MessageContent markdown={message.role === 'assistant'}>
-                  {#if message.role === 'assistant'}
-                    <AiResponse content={message.content} class="text-sm" />
-                  {:else}
-                    {message.content}
-                  {/if}
-                </MessageContent>
-              </Message>
-            </div>
-          {/each}
-  
+
+	function handleKeyDown(event: KeyboardEvent) {
+		if (event.key === 'Enter' && !event.shiftKey) {
+			event.preventDefault();
+			handleSubmit();
+		}
+	}
+
+</script>
+
+
+	<section class="flex flex-col h-[100dvh] max-h-[100dvh] bg-white">
+
+	<div class="flex-1 flex flex-col max-w-4xl mx-auto w-full min-h-0">
+		<!-- Header con botón de nueva conversación -->
+		<header class="px-4 py-4 border-b bg-white flex items-center justify-between">
+			<h1 class="text-xl font-semibold text-slate-900">AgentIA</h1>
+			
+			<!-- ✅ Botón de nueva conversación -->
+			{#if messages.length > 0}
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					onclick={handleNewConversation}
+					class="flex items-center gap-2 text-[#00548F] border-[#00548F] hover:bg-[#E6F0FA]"
+				>
+					<MessageSquarePlus class="h-4 w-4" />
+					<span>Nueva conversación</span>
+				</Button>
+			{/if}
+		</header>
+
+		<!-- Chat Container con div scrollable -->
+		<div class="flex-1 overflow-hidden min-h-0">
+			<div class="h-full overflow-y-auto px-4 py-6 space-y-6" bind:this={chatContainerRef}>
+				{#if messages.length === 0}
+					<!-- Estado inicial con sugerencias -->
+					<div class="flex flex-col items-center justify-center h-full space-y-6">
+						<div class="text-center space-y-2 mb-8">
+							<h2 class="text-2xl font-semibold text-slate-900">
+								¿En qué puedo ayudarte?
+							</h2>
+						</div>
+
+						<!-- Sugerencias -->
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-lg mt-14">
+							{#each suggestions as suggestion}
+								<button
+									type="button"
+									onclick={() => handleSuggestionClick(suggestion)}
+									class="flex items-center justify-center px-4 py-2 rounded-full bg-[#E6F0FA] text-[#00548F] text-sm font-medium shadow-sm hover:shadow-md border border-[#C9DCEC] hover:bg-[#D9E8F5] transition-all"
+								>
+									{suggestion}
+								</button>
+							{/each}
+						</div>
+					</div>
+				{:else}
+					<!-- Mensajes del chat -->
+					{#each messages as message (message.id)}
+						<div
+							class="flex gap-4 {message.role === 'user' ? 'justify-end' : 'justify-start'}"
+						>
+							<Message class="max-w-[85%]">
+								{#if message.role === 'assistant'}
+									<MessageAvatar
+										fallback="AI"
+										class="bg-[#00548F] text-white shadow-md"
+									/>
+								{/if}
+
+								<MessageContent
+									markdown={message.role === 'assistant'}
+									class="{message.role === 'user'
+										? 'bg-slate-900 rounded-2xl'
+										: 'bg-slate-50 text-slate-900 rounded-2xl'} px-4 py-3"
+								>
+									{#if message.role === 'assistant'}
+										<AiResponse
+											content={message.content}
+											class="text-sm prose prose-slate"
+										/>
+										
+										<!-- Botón para reabrir el reporte -->
+										{#if message.reportId && message.reportFilename}
+											<div class="mt-4 pt-3 border-t border-slate-200">
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													onclick={() => reopenReport(message.reportId!, message.reportFilename!)}
+													class="flex items-center gap-2 text-[#00548F] border-[#00548F] hover:bg-[#E6F0FA]"
+												>
+													<FileText class="h-4 w-4" />
+													<span>Ver reporte</span>
+												</Button>
+											</div>
+										{/if}
+									{:else}
+										<p class="text-sm whitespace-pre-wrap user-message-text">
+											{message.content}
+										</p>
+									{/if}
+								</MessageContent>
+							</Message>
+						</div>
+					{/each}
+
 					{#if queryStore.isLoading}
-						<Message class="max-w-[60%]">
-							<MessageAvatar fallback="AI" />
-							<MessageContent>
-								<Loader variant="dots" size="sm" text="Pensando..." />
-							</MessageContent>
-						</Message>
+						<div class="flex gap-4">
+							<Message class="max-w-[85%]">
+								<MessageAvatar fallback="AI" class="bg-[#00548F] text-white" />
+								<MessageContent class="bg-slate-50 rounded-2xl px-4 py-3">
+									<Loader variant="dots" size="sm" text="Pensando..." />
+								</MessageContent>
+							</Message>
+						</div>
 					{/if}
-				</ChatContainerContent>
+				{/if}
+			</div>
+		</div>
 
-				<ChatContainerScrollAnchor />
-			</ChatContainerRoot>
-
-			{#if queryStore.error}
+		<!-- Error Alert -->
+		{#if queryStore.error}
+			<div class="px-4 pb-2">
 				<Alert variant="destructive" class="flex items-start gap-2">
 					<AlertCircle class="h-4 w-4 mt-0.5" />
 					<div>
@@ -182,70 +319,81 @@
 						<p class="text-sm">{queryStore.error}</p>
 					</div>
 				</Alert>
-			{/if}
-  
-			<!-- Sugerencias - Centradas y más cortas -->
-			<div class="flex flex-wrap justify-center gap-2 max-w-3xl mx-auto">
-				{#each suggestions as suggestion}
-					<button
-						type="button"
-						onclick={() => handleSuggestionClick(suggestion)}
-						class="px-3 py-1.5 text-xs rounded-full border border-slate-200 bg-white hover:bg-slate-50 transition-colors max-w-xs text-center"
-					>
-						{suggestion.slice(0, 60)}...
-					</button>
-				{/each}
 			</div>
-  
-			<!-- File Upload -->
-			<FileUpload onFilesAdded={handleFilesAdded} multiple accept=".pdf,.doc,.docx">
-				<FileUploadContent
-					class="flex items-center justify-between text-xs text-muted-foreground border rounded-lg px-3 py-2 cursor-pointer bg-white mb-3"
-				>
-					<span>
-						{#if attachedFiles.length === 0}
-							📎 Arrastra documentos o haz clic (PDF, DOC, DOCX)
-						{:else}
-							✅ {attachedFiles.length} archivo(s) adjunto(s)
-						{/if}
-					</span>
+		{/if}
 
-					<FileUploadTrigger class="text-xs font-medium underline">
-						Seleccionar
-					</FileUploadTrigger>
-				</FileUploadContent>
-			</FileUpload>
-
-			<!-- Prompt Input - SIN container externo -->
-			<PromptInput
-				isLoading={queryStore.isLoading}
-				value={inputValue}
-				onValueChange={(v) => (inputValue = v)}
-				onSubmit={handleSubmit}
-				maxHeight={200}
-			>
-				<PromptInputTextarea
-					placeholder="Escribe tu consulta normativa..."
-					disabled={queryStore.isLoading}
-				/>
-
-				<PromptInputActions>
-					<PromptInputAction>
+		<!-- Input Area -->
+		<div class="px-4 pb-4 bg-white border-t">
+			<div class="max-w-3xl mx-auto space-y-3 py-3">
+				<!-- File Upload indicador -->
+				{#if attachedFiles.length > 0}
+					<div
+						class="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 px-3 py-2 rounded-lg"
+					>
+						<Paperclip class="h-3 w-3" />
+						<span>{attachedFiles.length} archivo(s) adjunto(s)</span>
 						<button
 							type="button"
+							onclick={() => (attachedFiles = [])}
+							class="ml-auto text-red-600 hover:text-red-700 font-medium"
+						>
+							Eliminar
+						</button>
+					</div>
+				{/if}
+
+				<!-- Prompt Input -->
+				<PromptInput
+					isLoading={queryStore.isLoading}
+					value={inputValue}
+					onValueChange={(v) => (inputValue = v)}
+					onSubmit={handleSubmit}
+					maxHeight={150}
+					class="border-2 border-slate-200 rounded-2xl shadow-sm focus-within:border-[#00548F] transition-colors"
+				>
+					<PromptInputTextarea
+						placeholder="Escribe tu consulta normativa..."
+						disabled={queryStore.isLoading}
+						onkeydown={handleKeyDown}
+						class="resize-none px-4 py-3 text-sm"
+					/>
+
+					<PromptInputActions class="px-2 pb-2">
+						<FileUpload onFilesAdded={handleFilesAdded} multiple accept=".pdf,.doc,.docx">
+							<FileUploadTrigger class="h-8 w-8 p-0">
+								<Paperclip class="h-4 w-4" />
+							</FileUploadTrigger>
+						</FileUpload>
+
+						<Button
+							type="button"
 							onclick={handleSubmit}
-							class="px-4 py-2 rounded-md bg-[#00548F] hover:bg-[#003d6b] text-white text-sm font-medium disabled:opacity-60 transition-colors"
-							disabled={queryStore.isLoading || !inputValue.trim()}
+							disabled={queryStore.isLoading ||
+								(!inputValue.trim() && attachedFiles.length === 0)}
+							size="sm"
+							class="bg-[#00548F] hover:bg-[#003d6b] text-white rounded-xl"
 						>
 							{#if queryStore.isLoading}
-								⏳ Enviando...
+								⏳
 							{:else}
-								Enviar ➤
+								Enviar
 							{/if}
-						</button>
-					</PromptInputAction>
-				</PromptInputActions>
-			</PromptInput>
+						</Button>
+					</PromptInputActions>
+				</PromptInput>
+
+				<p class="text-xs text-center text-slate-500">
+					AgentIA puede cometer errores. Verifica la información importante.
+				</p>
+			</div>
+		</div>
 	</div>
 </section>
-  
+
+
+<style>
+	/* Forzar color blanco en mensajes del usuario */
+	:global(.user-message-text) {
+		color: white !important;
+	}
+</style>

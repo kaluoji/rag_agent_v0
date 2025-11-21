@@ -25,29 +25,6 @@ logger = logging.getLogger(__name__)
 llm = settings.llm_model
 model = OpenAIModel(llm)
 
-class ReportDeps(BaseModel):
-    output_folder: str = "output/reports"
-    template_folder: str = "agents/templates"
-    openai_client: AsyncOpenAI
-
-    class Config:
-        arbitrary_types_allowed = True
-
-class ReportResult(BaseModel):
-    file_path: str
-    report_type: str = "word"
-    message: str = "Reporte generado exitosamente"
-    sections_filled: List[str] = []
-
-# Mapeo de placeholders del template
-TEMPLATE_PLACEHOLDERS = {
-    "{{EXECUTIVE_SUMMARY}}": "executive_summary",
-    "{{ALCANCE}}": "scope", 
-    "{{FINDINGS}}": "findings",
-    "{{CONCLUSIONES_RECOMENDACIONES}}": "conclusions_recommendations",
-
-}
-
 report_system_prompt = """
 Eres un experto en análisis regulatorio que genera reportes profesionales diferenciados por sección.
 
@@ -69,8 +46,32 @@ PROHIBIDO:
 - Usar lenguaje genérico sin base en la documentación
 - Generar recomendaciones sin fundamento específico
 
-Template fijo: "Template_Regulatory_Report_AgentIA.docx"
+Template fijo: "Template_Regulatory_Report_AgentIA_v0.docx"
 """
+
+class ReportDeps(BaseModel):
+    output_folder: str = "output/reports"
+    template_folder: str = "agents/templates"
+    openai_client: AsyncOpenAI
+
+    class Config:
+        arbitrary_types_allowed = True
+
+class ReportResult(BaseModel):
+    file_path: str
+    report_type: str = "word"
+    message: str = "Reporte generado exitosamente"
+    sections_filled: List[str] = []
+
+# Mapeo de placeholders del template
+TEMPLATE_PLACEHOLDERS = {
+    "{{RESUMEN_EJECUTIVO}}": "executive_summary",
+    "{{ALCANCE_ANALISIS}}": "scope", 
+    "{{ANALISIS}}": "findings",
+    "{{ANALISIS_SECTORIAL}}": "sector_impact_analysis",
+    "{{RECOMENDACIONES}}": "conclusions_recommendations"
+
+}
 
 report_agent = Agent(
     model=model,
@@ -90,7 +91,6 @@ def find_placeholders_in_document(doc_path: str) -> List[str]:
     # Buscar en párrafos
     for paragraph in doc.paragraphs:
         text = paragraph.text
-        # Buscar patrones que empiecen con {{ y terminen con }}
         found = re.findall(r'\{\{[^}]+\}\}', text)
         placeholders.extend(found)
     
@@ -102,9 +102,37 @@ def find_placeholders_in_document(doc_path: str) -> List[str]:
                     text = paragraph.text
                     found = re.findall(r'\{\{[^}]+\}\}', text)
                     placeholders.extend(found)
+
+    # 🔹 NUEVO: buscar también en TODO el XML (incluye cuadros de texto, etc.)
+    xml = doc._element.xml
+    found_xml = re.findall(r'\{\{[^}]+\}\}', xml)
+    placeholders.extend(found_xml)
     
     logger.info(f"Placeholders encontrados en el documento: {placeholders}")
     return list(set(placeholders))
+
+def normalize_generated_text(text: str) -> str:
+    """
+    Limpia un poco el texto generado por el modelo para que Word lo justifique mejor:
+    - Une líneas sueltas en un mismo párrafo.
+    - Mantiene sólo los saltos de párrafo (doble salto de línea).
+    """
+    # Separar por párrafos (doble salto de línea)
+    paragraphs = re.split(r'\n\s*\n', text)
+    cleaned_paragraphs = []
+
+    for p in paragraphs:
+        p = p.strip()
+        if not p:
+            continue
+        # Dentro de cada párrafo, sustituir saltos de línea simples por espacios
+        one_line = re.sub(r'\s*\n\s*', ' ', p)
+        # Colapsar espacios múltiples
+        one_line = re.sub(r' {2,}', ' ', one_line)
+        cleaned_paragraphs.append(one_line)
+
+    return "\n\n".join(cleaned_paragraphs)
+
 
 def replace_placeholder_in_document(doc: Document, placeholder: str, content: str):
     """
@@ -115,10 +143,9 @@ def replace_placeholder_in_document(doc: Document, placeholder: str, content: st
     # Reemplazar en párrafos
     for paragraph in doc.paragraphs:
         if placeholder in paragraph.text:
-            # Reemplazar el texto completo del párrafo
             new_text = paragraph.text.replace(placeholder, content)
             paragraph.clear()
-            paragraph.add_run(new_text)
+            insert_markdown(paragraph, new_text)
             replacements_made += 1
     
     # Reemplazar en tablas
@@ -129,16 +156,161 @@ def replace_placeholder_in_document(doc: Document, placeholder: str, content: st
                     if placeholder in paragraph.text:
                         new_text = paragraph.text.replace(placeholder, content)
                         paragraph.clear()
-                        paragraph.add_run(new_text)
+                        insert_markdown(paragraph, new_text)
                         replacements_made += 1
+
+    # 🔹 NUEVO: reemplazar también en cualquier nodo de texto del XML
+    if placeholder in ("{{FECHA}}", "{{LEY_ANALIZADA}}"):
+        for element in doc._element.iter():
+            if element.tag.endswith('}t') and element.text and placeholder in element.text:
+                element.text = element.text.replace(placeholder, content)
+                replacements_made += 1
     
     logger.info(f"Realizados {replacements_made} reemplazos para el placeholder '{placeholder}'")
+
+def insert_markdown_bold(paragraph, text):
+    """
+    Inserta texto en un párrafo de Word interpretando **negrita** estilo Markdown.
+    """
+    import re
+    pattern = r'\*\*(.*?)\*\*'
+    last_index = 0
+
+    for match in re.finditer(pattern, text):
+        # Texto normal antes de la negrita
+        if match.start() > last_index:
+            paragraph.add_run(text[last_index:match.start()])
+
+        # Texto en negrita
+        bold_run = paragraph.add_run(match.group(1))
+        bold_run.bold = True
+
+        last_index = match.end()
+
+    # Texto restante
+    if last_index < len(text):
+        paragraph.add_run(text[last_index:])
+
+def insert_markdown(paragraph, text: str):
+    """
+    Inserta contenido interpretando Markdown básico EN LA POSICIÓN DEL PLACEHOLDER:
+    - # Título 1  -> estilo 'Heading 1'
+    - ## Título 2 -> estilo 'Heading 2'
+    - ### Título 3 (o más #) -> estilo 'Heading 3'
+    - - item      -> lista con viñeta ('List Bullet')
+    - 1. item     -> lista numerada ('List Number')
+    - **texto**   -> negrita en runs
+    Cada línea se convierte en un párrafo nuevo o en el párrafo original.
+    """
+    import re
+
+    # Separar en líneas y limpiar espacios
+    # Unificar líneas normales dentro de un mismo párrafo
+    raw_lines = text.split("\n")
+    lines = []
+    buffer = ""
+
+    for l in raw_lines:
+        l = l.strip()
+
+        # Si es un encabezado o lista, se corta el buffer
+        if re.match(r"^(#{1,6})\s+", l) or l.startswith("- ") or re.match(r"^\d+\.\s+", l):
+            if buffer:
+                lines.append(buffer.strip())
+                buffer = ""
+            lines.append(l)
+        else:
+            # Línea normal → acumularla en buffer
+            if l:
+                buffer += " " + l
+
+    if buffer:
+        lines.append(buffer.strip())
+
+
+    # Eliminar líneas vacías al principio y al final
+    while lines and lines[0] == "":
+        lines.pop(0)
+    while lines and lines[-1] == "":
+        lines.pop()
+
+    if not lines:
+        return
+
+    current_paragraph = paragraph  # empezamos usando el párrafo del placeholder
+
+    # Procesamos en orden inverso para que insert_paragraph_before mantenga el orden final correcto
+    first = True
+    for line in reversed(lines):
+        line = line.strip()
+
+        if line == "":
+            # línea en blanco -> párrafo vacío antes
+            new_p = current_paragraph.insert_paragraph_before()
+            current_paragraph = new_p
+            continue
+
+        # 🔹 Saltar separadores tipo '---', '***', '___'
+        if line in ("---", "***", "___"):
+            new_p = current_paragraph.insert_paragraph_before()
+            current_paragraph = new_p
+            first = False
+            continue
+
+        # Detectar tipo de línea
+        style = None
+        content = line
+
+        # 🔹 Encabezados Markdown (#, ##, ###, etc.)
+        m = re.match(r"^(#{1,6})\s+(.*)", line)
+        if m:
+            hashes, rest = m.groups()
+            level = len(hashes)
+            content = rest.strip()
+            if level == 1:
+                style = "Heading 1"
+            elif level == 2:
+                style = "Heading 2"
+            else:
+                style = "Heading 3"
+        # Lista numerada (1. , 2. , etc.)
+        elif re.match(r"^\d+\.\s+", line):
+            style = "List Number"
+            content = re.sub(r"^\d+\.\s+", "", line).strip()
+        # Lista con viñeta
+        elif line.startswith("- "):
+            style = "List Bullet"
+            content = line[2:].strip()
+
+        # Elegir en qué párrafo escribir
+        if first:
+            # La última línea se escribe en el párrafo original
+            target_p = current_paragraph
+            first = False
+        else:
+            # Las demás se insertan antes, de abajo hacia arriba
+            target_p = current_paragraph.insert_paragraph_before()
+            current_paragraph = target_p
+
+        # Aplicar estilo si procede
+        if style:
+            try:
+                target_p.style = style
+            except Exception:
+                # Si el estilo no existe en la plantilla, lo ignoramos y seguimos
+                pass
+
+        # Rellenar el párrafo con negritas interpretando **texto**
+        insert_markdown_bold(target_p, content)
+
+
+
 
 @report_agent.tool
 async def generate_report_from_template(
     ctx: RunContext[ReportDeps], 
     analysis_data: str, 
-    template_name: str = "Template_Regulatory_Report_AgentIA.docx",
+    template_name: str = "Template_Regulatory_Report_AgentIA_v0.docx",
     regulation_name: str = "Normativa Analizada",
     output_filename: str = None
 ) -> ReportResult:
@@ -170,8 +342,8 @@ async def generate_report_from_template(
         
         # Reemplazar fecha y nombre de regulación
         current_date = datetime.datetime.now().strftime("%d/%m/%Y")
-        replace_placeholder_in_document(doc, "[Fecha]", current_date)
-        replace_placeholder_in_document(doc, "[Ley analizada]", regulation_name)
+        replace_placeholder_in_document(doc, "{{FECHA}}", current_date)
+        replace_placeholder_in_document(doc, "{{LEY_ANALIZADA}}", regulation_name)
         
         # Generar contenido para cada sección
         sections_filled = []
@@ -194,8 +366,11 @@ async def generate_report_from_template(
                     analysis_data, 
                     regulation_name
                 )
-                
+
+                content = normalize_generated_text(content)
+
                 replace_placeholder_in_document(doc, placeholder, content)
+
                 sections_filled.append(section_key)
                 logger.info(f"Sección completada: {section_key}")
             else:
@@ -229,7 +404,6 @@ async def generate_report_from_template(
         logger.error(f"Error generando reporte desde template: {e}")
         raise e
 
-# En agents/report_agent.py, reemplaza la función generate_section_content completa:
 async def generate_section_content(
     openai_client: AsyncOpenAI, 
     section_key: str, 
@@ -249,93 +423,195 @@ async def generate_section_content(
 INFORMACIÓN DE LA BASE DE CONOCIMIENTO:
 {analysis_data}
 
-TAREA: Genera un EXECUTIVE SUMMARY de MÁXIMO 150 palabras para {regulation_name}.
+OBJETIVO:
+Ofrecer una visión clara, estratégica y ejecutiva de {regulation_name} para permitir que directivos y áreas de cumplimiento comprendan rápidamente qué cambia, por qué importa y dónde deben enfocar su atención inmediata.
 
-ESTRUCTURA OBLIGATORIA:
-- Párrafo 1 (40 palabras): Propósito principal de la regulación
-- Párrafo 2 (60 palabras): 3 hallazgos más críticos (solo los MÁS importantes)
-- Párrafo 3 (50 palabras): Impacto operacional clave y conclusión ejecutiva
+TAREA:
+Redacta un RESUMEN EJECUTIVO (máx. 1000 palabras) sobre {regulation_name}, sintetizando el propósito de la norma, sus implicaciones y el impacto sectorial.
 
-REGLAS ESTRICTAS:
-- Usar SOLO los 3 artículos/obligaciones MÁS críticos identificados
-- Eliminar frases de transición innecesarias
-- Lenguaje directo y cuantificable cuando sea posible
-- NO duplicar información que aparecerá en Findings detallados
+ESTRUCTURA:
+1. Contexto y propósito de la regulación
+2. Cambios principales u obligaciones clave extraídas del texto
+3. Impacto estratégico y operativo para el sector afectado
+4. Conclusión ejecutiva con foco inmediato para áreas jurídicas y de compliance
+
+REGLAS:
+- Evitar repeticiones con las secciones de Findings o Recomendaciones
+- Tono ejecutivo, orientado a toma de decisiones
+- Sin adornos ni lenguaje genérico
+- Crear una transición natural hacia “Alcance del análisis”
+
+FORMATO:
+- Puedes usar Markdown para estructurar la información.
+- Usa **negrita** con Markdown.
+- Usa solo encabezados de nivel 2 o inferior (##, ###) para subapartados internos.
+- NO incluyas un título tipo “Resumen ejecutivo” ni el nombre de la norma; el título de la sección ya está en el documento. Empieza directamente con el contenido.
+- Usa listas (- o 1.) cuando sea más claro que un párrafo.
+
+PROHIBIDO:
+- Agregar información no presente en el contexto
+- Usar lenguaje genérico sin métricas/plazos concretos
+- Repetir contenido que irá en otras secciones
+
+ESTILO: Prosa directa, datos específicos, sin listas.
 """,
+
 
     "scope": f"""
 INFORMACIÓN DE LA BASE DE CONOCIMIENTO:
 {analysis_data}
 
-TAREA: Define el ALCANCE específico del análisis para {regulation_name}.
+OBJETIVO:
+Delimitar claramente qué parte de la regulación se ha analizado (sin incluir el número de los artículos), qué queda fuera, qué áreas funcionales se ven afectadas y bajo qué criterios se ha estructurado el análisis, para asegurar trazabilidad y rigor metodológico.
+
+TAREA:
+Define el ALCANCE DEL ANÁLISIS para {regulation_name}.
 
 ESTRUCTURA:
-1. Normativas y artículos ESPECÍFICOS analizados (enumera cuáles)
-2. Áreas organizacionales afectadas según la documentación
-3. Período temporal cubierto por el análisis
-4. Limitaciones del análisis (qué NO se incluye)
-5. Metodología de revisión utilizada
+1. Títulos y disposiciones examinadas
+2. Áreas organizativas del sector afectadas según el contenido disponible
+3. Periodo temporal o contexto de aplicación
+4. Exclusiones del análisis y limitaciones documentales
+5. Metodología utilizada y criterios de priorización
+
+FORMATO:
+- Puedes usar Markdown para estructurar la información.
+- Usa **negrita** con Markdown para resaltar conceptos clave.
+- Usa solo encabezados de nivel 2 o inferior (##, ###) para las subsecciones.
+- NO repitas el título “Alcance del análisis” ni variantes; el título ya está en el template. Empieza directamente con el punto 1.
+- Usa listas (- o 1.) cuando sea más claro que un párrafo.
+
 
 REGLAS:
-- Ser específico sobre QUÉ se analizó y QUÉ NO
-- Mencionar fechas, versiones de documentos si están disponibles
-- Clarificar el perímetro exacto del análisis
-- No repetir conclusiones (eso va en otra sección)
+- Nada de conclusiones ni impactos (eso va en Findings)
+- Redacción técnica, concisa y trazable
+- Mencionar solo lo presente en el análisis_data
+- Preparar la transición a “Análisis normativo / Findings”
 """,
 
     "findings": f"""
 INFORMACIÓN DE LA BASE DE CONOCIMIENTO:
 {analysis_data}
 
-TAREA: Desarrolla FINDINGS categorizados por CRITICIDAD para {regulation_name}.
+OBJETIVO:
+Identificar, clasificar y explicar las obligaciones normativas relevantes, así como su impacto operativo y su nivel de riesgo para las organizaciones del sector, proporcionando la base para recomendaciones accionables.
 
-ESTRUCTURA OBLIGATORIA:
+TAREA:
+Desarrolla el ANÁLISIS NORMATIVO / FINDINGS de {regulation_name}, agrupando las obligaciones por nivel de impacto y explicando su relevancia operativa.
 
-**CRÍTICOS (Impacto Alto/Inmediato):**
-- [Artículo X]: [Obligación específica] - Impacto: [Descripción concreta] - Plazo: [Si aplica]
+ESTRUCTURA:
+1. Obligaciones críticas (impacto alto / cumplimiento inmediato)
+   - Artículo
+   - Obligación
+   - Riesgo o sanción por incumplimiento
+   - Área o proceso impactado
 
-**IMPORTANTES (Impacto Medio/Seguimiento):**
-- [Artículo Y]: [Requisito específico] - Implicación: [Qué significa para la empresa]
+2. Obligaciones relevantes (impacto medio / seguimiento continuo)
+   - Requisito
+   - Implicación operativa o de gobernanza
 
-**INFORMATIVOS (Conocimiento General):**
-- [Artículo Z]: [Definición/Criterio] - Relevancia: [Por qué es importante conocerlo]
+3. Aspectos informativos o de contexto (impacto bajo)
+   - Conceptos clave que guían la norma
 
-**BRECHAS IDENTIFICADAS:**
-- Información faltante en la documentación analizada
-- Aspectos que requieren clarificación adicional
+4. Brechas, vacíos o ambigüedades detectadas
 
 REGLAS:
-- Máximo 2 hallazgos por categoría (total 8 hallazgos)
-- Cada hallazgo debe incluir: Artículo + Obligación + Impacto concreto
-- Usar términos cuantificables: "15 días", "4%", "dos veces al año"
-- Evitar generalidades, ser específico en las implicaciones
+- Lenguaje claro y cuantificable
+- Evitar generalidades jurídicas
+- Conectar cada hallazgo con su posible traducción operativa
+
+FORMATO:
+- Puedes usar Markdown para estructurar la información.
+- Usa **negrita** para los identificadores de hallazgos (C1, C2, M1, etc.) y para conceptos clave como plazos y tipos de reporte.
+- Usa encabezados (###) para cada hallazgo (por ejemplo: "### C1. Obligación...").
+- NO generes un encabezado general del tipo “ANÁLISIS NORMATIVO / FINDINGS”; ese título ya existe en el documento.
+- Usa listas (- o 1.) cuando sea más claro que un párrafo.
+
+
+""",
+
+"sector_impact_analysis": f"""
+INFORMACIÓN DE LA BASE DE CONOCIMIENTO:
+{analysis_data}
+
+OBJETIVO DE LA SECCIÓN:
+Analizar cómo los requisitos de {regulation_name} afectan de manera específica al sector evaluado, describiendo cambios operativos, riesgos, retos y oportunidades. El objetivo es permitir que las áreas de jurídica y compliance traduzcan los efectos de la norma en impactos reales sobre procesos, modelos de negocio y funciones clave.
+
+TAREA:
+Redacta un ANÁLISIS DE IMPACTO SECTORIAL basado EXCLUSIVAMENTE en la información disponible, interpretando de forma profesional y sin añadir conocimiento externo qué efectos puede generar la normativa sobre las actividades típicas del sector (por ejemplo, asegurador, bancario, tecnológico o equivalente, según se deduzca del contenido).
+
+ESTRUCTURA OBLIGATORIA (no modificar):
+1. Procesos o actividades del sector directamente afectados  
+2. Cambios operativos, tecnológicos o documentales derivados de la norma  
+3. Riesgos sectoriales emergentes (operativos, sancionadores, reputacionales)  
+4. Oportunidades de mejora o ventajas competitivas derivadas de la adaptación  
+5. Implicaciones para modelos de gobierno, control interno y reporting  
+
+REGLAS ESTRICTAS:
+- NO añadir información externa ni interpretaciones que no estén respaldadas por el análisis previo.  
+- Basar cada punto en disposiciones, artículos o principios citados en {analysis_data}.  
+- Lenguaje profesional, claro y orientado a toma de decisiones.  
+- No repetir los ‘findings’; esta sección debe interpretar SU IMPACTO en el sector.    
+- Mantener conexión explícita entre los impactos y los artículos u obligaciones relevantes.  
+
+FORMATO:
+- Puedes usar Markdown para estructurar la información.
+- Usa **negrita** con Markdown para conceptos clave.
+- Usa solo encabezados de nivel 2 o inferior (##, ###) para ordenar los 5 apartados, si lo consideras útil.
+- NO añadas un título general como “Análisis de Impacto Sectorial”; ya existe en el template.
+- Usa listas (- o 1.) cuando sea más claro que un párrafo.
+
+
+OBJETIVO FINAL DEL TEXTO:
+Brindar una visión estratégica del impacto real de la regulación sobre el sector, sirviendo como puente entre los hallazgos normativos y las recomendaciones operativas del informe.
 """,
 
     "conclusions_recommendations": f"""
 INFORMACIÓN DE LA BASE DE CONOCIMIENTO:
 {analysis_data}
 
-TAREA: Genera RECOMENDACIONES ACCIONABLES para {regulation_name}.
+OBJETIVO:
+Transformar los hallazgos normativos en acciones claras, priorizadas y ejecutables por áreas jurídicas, técnicas y de negocio, permitiendo avanzar hacia el cumplimiento efectivo y la preparación ante auditorías.
 
-ESTRUCTURA OBLIGATORIA:
+TAREA:
+Genera RECOMENDACIONES ESTRATÉGICAS y ACCIONABLES basadas en los hallazgos del análisis.
 
-**ACCIONES INMEDIATAS (0-30 días):**
-1. [Acción específica] - Responsable sugerido: [Área] - Entregable: [Qué producir]
-2. [Acción específica] - Responsable sugerido: [Área] - Entregable: [Qué producir]
+ESTRUCTURA:
 
-**IMPLEMENTACIÓN MEDIANO PLAZO (1-6 meses):**
-1. [Proyecto específico] - Recursos estimados: [Tiempo/Personal] - Resultado esperado: [Métrica]
-2. [Mejora de proceso] - Inversión requerida: [Estimación] - Beneficio: [Reducción de riesgo]
+1. Acciones inmediatas (0–30 días)
+   - Acción específica
+   - Responsable sugerido
+   - Entregable verificable
+   - Hallazgo/artículo asociado
 
-**MONITOREO CONTINUO:**
-1. [KPI específico a monitorear] - Frecuencia: [Mensual/Trimestral] - Responsable: [Área]
-2. [Control a implementar] - Automatización: [Sí/No] - Alerta: [Criterio]
+2. Implementación a medio plazo (1–6 meses)
+   - Proyecto o mejora
+   - Recursos requeridos
+   - Resultado esperado
+   - Hallazgo/artículo asociado
 
-REGLAS CRÍTICAS:
-- Cada recomendación debe estar vinculada a un artículo/hallazgo específico
-- Incluir estimaciones realistas de recursos y tiempo
-- Definir entregables concretos, no conceptos vagos
-- Priorizar por impacto regulatorio (sanción potencial) vs esfuerzo de implementación
+3. Monitoreo y mejora continua
+   - Indicadores o KPIs
+   - Frecuencia
+   - Responsable
+
+4. Impacto sectorial consolidado
+   - Procesos del sector más afectados
+   - Riesgos o oportunidades emergentes
+
+REGLAS:
+- Todo debe vincularse a hallazgos concretos
+- Tono consultivo, claro y orientado al cumplimiento
+- Evitar abstracciones o recomendaciones genéricas
+- Finalizar con una visión sintética del roadmap normativo
+
+FORMATO:
+- Usa **negrita** para resaltar acciones clave, responsables y plazos.
+- Usa encabezados (##, ###) para dividir bloques (Acciones inmediatas, Medio plazo, etc.).
+- NO generes un encabezado general “Recomendaciones” o similar; el título de la sección ya está en el documento.
+- Usa listas (- o 1.) para detallar acciones y KPIs.
+
+
 """
 }
     
@@ -344,27 +620,43 @@ REGLAS CRÍTICAS:
     try:
         completion = await openai_client.chat.completions.create(
             model=settings.llm_model,
-            temperature=0.0,  # Temperatura baja para ser más fiel a los datos
+            temperature=0.2,  # Temperatura baja para ser más fiel a los datos
             max_tokens=5000,
             messages=[
                 {
                     "role": "system", 
-                    "content": """Eres un experto en análisis regulatorio que trabaja EXCLUSIVAMENTE con información específica de bases de conocimiento.
+                    "content": """Eres un experto en análisis regulatorio de sector asegurador que trabaja EXCLUSIVAMENTE con información específica de bases de conocimiento.
 
 INSTRUCCIONES CRÍTICAS:
-1. USA SOLO la información proporcionada en el contexto
-2. NO agregues conocimiento general o información externa
-3. Cita específicamente artículos, secciones y disposiciones encontradas
-4. Si la información es limitada, sé transparente sobre las limitaciones
-5. Genera SOLO texto plano sin formato Markdown
-6. Mantén fidelidad absoluta a la documentación proporcionada
-7. Estructura el contenido de forma profesional y coherente
+1. Usa SOLO la información proporcionada en el contexto.
+2. No agregues conocimiento general ni información externa.
+3. Cita específicamente artículos, secciones y disposiciones encontradas, si existen.
+4. Si la información es limitada o faltante, dilo explícitamente y señala la sección “Alcance” como referencia de límites.
+5. Permite Markdown básico: negritas (**texto**), encabezados de nivel 2 o inferior (##, ###) y listas (-, 1.); NO uses encabezados de nivel 1 (#) porque el título principal de cada sección ya está en el template.
+6. Mantén fidelidad absoluta a la documentación proporcionada.
+7. Garantiza coherencia interseccional: las conclusiones deben referenciar hallazgos; los hallazgos deben alinearse con el alcance; el resumen ejecutivo debe mencionar dónde ampliar.
+8. Emplea conectores y frases puente para mejorar la fluidez (por ejemplo: “En consecuencia…”, “De acuerdo con…”, “Como se detalla en Hallazgos…”).
+9. Reutiliza terminología y definiciones tal como aparecen en el contexto; si hay siglas, estandarízalas y utilízalas consistentemente.
 
 PROHIBIDO:
-- Inventar artículos o disposiciones no mencionadas
-- Agregar información de conocimiento general
-- Usar formato Markdown (**, #, -, etc.)
-- Hacer suposiciones no respaldadas por la documentación"""
+- Inventar artículos o disposiciones no mencionadas.
+- Agregar información de conocimiento general.
+- Hacer suposiciones no respaldadas por la documentación.
+
+REGLAS DE TRAZABILIDAD:
+- Asigna identificadores a los hallazgos para permitir referencias cruzadas:
+  • Críticos: C1, C2
+  • Medios: M1, M2
+  • Informativos: I1, I2
+- En las recomendaciones, referencia SIEMPRE los identificadores de hallazgos (por ejemplo, "Relacionado con: C1").
+
+VALIDACIÓN DE COHERENCIA INTERSECCIONAL:
+- Si mencionas un hallazgo [ID] en Resumen o Recomendaciones, DEBE existir en Findings
+- Si citas un artículo en Recomendaciones, DEBE haber sido mencionado en Findings o Alcance
+- Los plazos mencionados deben ser consistentes en todas las secciones
+- La terminología técnica debe usarse de forma uniforme
+
+"""
                 },
                 {"role": "user", "content": prompt}
             ]
@@ -372,14 +664,6 @@ PROHIBIDO:
         
         content = completion.choices[0].message.content.strip()
         
-        # Limpiar cualquier formato Markdown
-        content = content.replace("**", "")
-        content = content.replace("*", "")
-        content = content.replace("###", "")
-        content = content.replace("##", "")
-        content = content.replace("#", "")
-        content = re.sub(r'\n\s*-\s+', '\n\n', content)
-        content = re.sub(r'\n\s*\*\s+', '\n\n', content)
         
         # VERIFICACIÓN: Asegurar que se está usando información de Supabase
         if has_supabase_data:
@@ -393,12 +677,11 @@ PROHIBIDO:
         logger.error(f"Error generando contenido para sección {section_key}: {e}")
         return f"[Error generando contenido para {section_key}]"
 
-# Función principal para procesar consultas con template - CORREGIDA
 async def process_report_query(
     query: str, 
     analysis_data: str, 
     deps: ReportDeps,
-    template_name: str = "Template_Regulatory_Report_AgentIA.docx",
+    template_name: str = "Template_Regulatory_Report_AgentIA_v0.docx",
     regulation_name: str = None
 ) -> ReportResult:
     """
@@ -411,11 +694,11 @@ async def process_report_query(
         try:
             completion = await deps.openai_client.chat.completions.create(
                 model=settings.llm_model,
-                temperature=0.0,
+                temperature=0.1,
                 messages=[
                     {
                         "role": "system", 
-                        "content": "Extrae el nombre de la regulación o ley mencionada en la consulta. Responde solo con el nombre."
+                        "content": "Extrae el nombre de la regulación o ley mencionada en la consulta y su denominación comunmente conocida. Responde solo con el nombre y la denominación comunmente conocida."
                     },
                     {"role": "user", "content": query}
                 ]

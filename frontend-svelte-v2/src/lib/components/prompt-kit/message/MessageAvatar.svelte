@@ -15,9 +15,11 @@
 	} = $props();
 </script>
 
-<Avatar class={cn("h-8 w-8 shrink-0", className)}>
+<Avatar class="h-8 w-8 shrink-0">
 	<AvatarImage {src} {alt} />
 	{#if fallback}
-		<AvatarFallback>{fallback}</AvatarFallback>
+		<AvatarFallback class={className}>
+			{fallback}
+		</AvatarFallback>
 	{/if}
 </Avatar>
